@@ -1,0 +1,95 @@
+<%- include('partials/header') %>
+<%- include('partials/navbar', { user }) %>
+
+<div class="lobby-container">
+  <div class="welcome-section">
+    <h1>Welcome, <%= user.username %>! </h1>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value"> <%= user.credits.toFixed(2) %></div>
+        <div class="stat-label">Brap Coins</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"> <%= user.totalWins %></div>
+        <div class="stat-label">Total Wins</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"> <%= user.totalLosses %></div>
+        <div class="stat-label">Total Losses</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="onlineUsers">0</div>
+        <div class="stat-label">Players Online</div>
+      </div>
+    </div>
+    <button onclick="claimDailyBonus()" class="btn-bonus">🎁 Claim Daily Bonus (500 Coins)</button>
+    <p class="message" id="bonusMessage"></p>
+  </div>
+
+  <div class="games-section">
+    <h2> Choose Your Game</h2>
+    <div class="games-grid">
+      <a href="/games/slots" class="game-card">
+        <div class="game-icon">🎰</div>
+        <h3>Slots</h3>
+        <p>Match symbols to win big!</p>
+      </a>
+      <a href="/games/roulette" class="game-card">
+        <div class="game-icon">🎡</div>
+        <h3>Roulette</h3>
+        <p>Bet on numbers and colors</p>
+      </a>
+      <a href="/games/blackjack" class="game-card">
+        <div class="game-icon">🂡</div>
+        <h3>Blackjack</h3>
+        <p>Beat the dealer to 21</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="activity-feed">
+    <h3> Recent Activity</h3>
+    <div id="activityList">
+      <p>No recent activity</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const socket = io()
+
+socket.emit('lobby:join', { username: '<%= user.username %>' })
+
+socket.on('lobby:updateUsers', (data) => {
+  document.getElementById('onlineUsers').textContent = data.count
+})
+
+socket.on('game:broadcast', (data) => {
+  const activityList = document.getElementById('activityList')
+  const item = document.createElement('div')
+  item.className = 'activity-item'
+  item.textContent = `${data.username} ${data.result === 'win' ? 'won' : 'lost'} ${data.amount} coins on ${data.gameType}`
+  activityList.prepend(item)
+  
+  if (activityList.children.length > 10) {
+    activityList.removeChild(activityList.lastChild)
+  }
+})
+
+async function claimDailyBonus() {
+  const res = await fetch('/auth/daily-bonus', { method: 'POST' })
+  const data = await res.json()
+  
+  const msg = document.getElementById('bonusMessage')
+  if (data.success) {
+    msg.textContent = '✅ Bonus claimed! +500 Brap Coins'
+    msg.className = 'message success'
+    setTimeout(() => location.reload(), 1500)
+  } else {
+    msg.textContent = '❌ ' + data.error
+    msg.className = 'message error'
+  }
+}
+</script>
+
+<%- include('partials/footer') %>

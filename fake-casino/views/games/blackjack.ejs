@@ -1,0 +1,177 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar', { user }) %>
+
+<div class="game-container">
+  <h1>🃏 Blackjack</h1>
+  <div class="game-info">
+    <div class="balance">Balance: <span id="credits"><%= user.credits.toFixed(2) %></span> Brap Coins</div>
+  </div>
+
+  <div class="blackjack-table">
+    <div class="dealer-section">
+      <h3>Dealer</h3>
+      <div class="hand" id="dealerHand"></div>
+      <div class="score" id="dealerScore"></div>
+    </div>
+
+    <div class="player-section">
+      <h3>You</h3>
+      <div class="hand" id="playerHand"></div>
+      <div class="score" id="playerScore"></div>
+    </div>
+  </div>
+
+  <div class="game-controls">
+    <div id="betControls">
+      <label for="betAmount">Bet Amount:</label>
+      <input type="number" id="betAmount" value="10" min="1" max="<%= user.credits %>">
+      <button onclick="startGame()" class="btn-primary">Deal Cards</button>
+    </div>
+
+    <div id="gameControls" style="display: none;">
+      <button onclick="hit()" id="hitBtn" class="btn-primary">Hit</button>
+      <button onclick="stand()" id="standBtn" class="btn-primary">Stand</button>
+      <button onclick="resetGame()" class="btn-secondary">New Game</button>
+    </div>
+  </div>
+
+  <div class="game-result" id="result"></div>
+
+  <div class="game-rules">
+    <h3>Rules:</h3>
+    <p>Get closer to 21 than the dealer without going over</p>
+    <p>Face cards = 10, Ace = 1 or 11</p>
+  </div>
+
+  <a href="/lobby" class="btn-back">← Back to Lobby</a>
+</div>
+
+<script>
+const socket = io()
+const username = '<%= user.username %>'
+let currentBet = 0
+let playerHand = []
+let dealerHand = []
+
+async function startGame() {
+  currentBet = parseInt(document.getElementById('betAmount').value)
+  playerHand = []
+  dealerHand = []
+  
+  const res = await fetch('/games/blackjack', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ betAmount: currentBet, action: 'deal' })
+  })
+  
+  const data = await res.json()
+  
+  if (data.success) {
+    playerHand = data.playerHand
+    dealerHand = data.dealerHand
+    updateUI(data)
+    
+    document.getElementById('betControls').style.display = 'none'
+    document.getElementById('gameControls').style.display = 'block'
+    
+    if (data.gameOver) {
+      endGame(data)
+    }
+  }
+}
+
+async function hit() {
+  const res = await fetch('/games/blackjack', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      betAmount: currentBet, 
+      action: 'hit',
+      playerHand,
+      dealerHand
+    })
+  })
+  
+  const data = await res.json()
+  
+  if (data.success) {
+    playerHand = data.playerHand
+    dealerHand = data.dealerHand
+    updateUI(data)
+    
+    if (data.gameOver) {
+      endGame(data)
+    }
+  }
+}
+
+async function stand() {
+  const res = await fetch('/games/blackjack', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      betAmount: currentBet, 
+      action: 'stand',
+      playerHand,
+      dealerHand
+    })
+  })
+  
+  const data = await res.json()
+  
+  if (data.success) {
+    playerHand = data.playerHand
+    dealerHand = data.dealerHand
+    updateUI(data)
+    endGame(data)
+  }
+}
+
+function updateUI(data) {
+  document.getElementById('playerHand').textContent = data.playerHand.join(' ')
+  document.getElementById('playerScore').textContent = `Score: ${data.playerScore}`
+  
+  document.getElementById('dealerHand').textContent = data.dealerHand.join(' ')
+  document.getElementById('dealerScore').textContent = data.gameOver ? `Score: ${data.dealerScore}` : ''
+  
+  document.getElementById('credits').textContent = data.credits
+}
+
+function endGame(data) {
+  document.getElementById('hitBtn').disabled = true
+  document.getElementById('standBtn').disabled = true
+  
+  const result = document.getElementById('result')
+  if (data.result === 'win') {
+    result.textContent = `🎉 You won ${data.winAmount} Brap Coins!`
+    result.className = 'game-result win'
+  } else if (data.result === 'push') {
+    result.textContent = `🤝 Push! Your bet returned`
+    result.className = 'game-result'
+  } else {
+    result.textContent = `😢 You lost ${currentBet} Brap Coins`
+    result.className = 'game-result loss'
+  }
+  
+  socket.emit('game:result', {
+    username,
+    gameType: 'blackjack',
+    result: data.result,
+    amount: data.result === 'win' ? data.winAmount : currentBet
+  })
+}
+
+function resetGame() {
+  document.getElementById('betControls').style.display = 'block'
+  document.getElementById('gameControls').style.display = 'none'
+  document.getElementById('result').textContent = ''
+  document.getElementById('playerHand').textContent = ''
+  document.getElementById('dealerHand').textContent = ''
+  document.getElementById('playerScore').textContent = ''
+  document.getElementById('dealerScore').textContent = ''
+  document.getElementById('hitBtn').disabled = false
+  document.getElementById('standBtn').disabled = false
+}
+</script>
+
+<%- include('../partials/footer') %>

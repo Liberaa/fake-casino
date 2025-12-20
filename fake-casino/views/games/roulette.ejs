@@ -1,0 +1,957 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar', { user }) %>
+
+<style>
+.roulette-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  color: #fff;
+}
+
+.roulette-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.roulette-header h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.balance-small {
+  color: #ffd700;
+  font-size: 0.9rem;
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 5px;
+  margin-right: 0.5rem;
+}
+
+.sound-toggle {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.wheel-section {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 15px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.reel-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  position: relative;
+  height: 120px;
+}
+
+.reel-wrapper {
+  width: 700px;
+  overflow: hidden;
+  position: relative;
+  mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+}
+
+.reel-container {
+  display: flex;
+  gap: 1rem;
+  will-change: transform;
+}
+
+.reel-container.looping {
+  animation: scroll-loop 10s linear infinite;
+}
+
+.reel-container.stopping {
+  animation: scroll-to-win 3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+@keyframes scroll-loop {
+  0% {
+    transform: translateX(0px);
+  }
+  100% {
+    transform: translateX(-1920px); /* 20 symbols * 96px for seamless loop */
+  }
+}
+
+@keyframes scroll-to-win {
+  from {
+    transform: translateX(0px);
+  }
+  to {
+    /* Symbol at index 100, each symbol is 96px (80px + 16px gap)
+       Center of viewport is 350px (half of 700px wrapper)
+       Symbol center needs to be at 350px, so left edge at 350 - 40 = 310px
+       Position: -(100 * 96 - 310) = -9290px */
+    transform: translateX(-9290px);
+  }
+}
+
+.reel-slot {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.reel-slot.moon { background: #4a5568; }
+.reel-slot.star { background: #f59e0b; }
+
+.center-indicator {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: 100px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+.timer-display {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.timer-label {
+  font-size: 1rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+
+.timer-value {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.rolling-display {
+  font-size: 1.2rem;
+  color: #888;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin: 2rem 0;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stat-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.stat-icon.moon { background: #4a5568; color: #fff; }
+.stat-icon.sun { background: #fbbf24; color: #000; }
+.stat-icon.star { background: #f59e0b; color: #fff; }
+
+.bet-input-section {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 15px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.bet-input-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.bet-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.8rem;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.bet-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.quick-bet-btns {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.quick-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quick-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.bet-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.bet-option {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 2px solid transparent;
+}
+
+.bet-option:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.bet-option.active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.bet-option-icon {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.moon-icon { background: #4a5568; }
+.sun-icon { background: #fbbf24; color: #000; }
+.star-icon { background: #f59e0b; }
+
+.bet-option-title {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.bet-option-win {
+  color: #10b981;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.bets-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.bets-column {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.bets-column h3 {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.bets-total {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+.bet-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+
+.bet-item-icon {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.bet-item-user {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bet-item-amount {
+  font-weight: bold;
+}
+
+.result-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.95);
+  padding: 2rem 3rem;
+  border-radius: 15px;
+  font-size: 2rem;
+  font-weight: bold;
+  z-index: 1000;
+  display: none;
+}
+
+.result-popup.show {
+  display: block;
+  animation: popIn 0.3s ease-out;
+}
+
+.result-popup.win {
+  color: #10b981;
+  border: 2px solid #10b981;
+}
+
+.result-popup.loss {
+  color: #ef4444;
+  border: 2px solid #ef4444;
+}
+
+@keyframes popIn {
+  0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.spin-animation {
+  animation: spin 2s ease-in-out;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(1440deg); }
+}
+</style>
+
+<div class="roulette-container">
+  <button class="sound-toggle" id="soundToggle">🔊 Sound on</button>
+  
+  <div class="roulette-header">
+    <h1>ROULETTE</h1>
+  </div>
+
+  <div class="wheel-section">
+    <div class="rolling-display" id="rollingText" style="display: none;">ROLLING...</div>
+    
+    <div class="reel-display">
+      <div class="reel-wrapper">
+        <div class="reel-container" id="reelContainer">
+          <!-- Reel items will be generated here -->
+        </div>
+      </div>
+      <div class="center-indicator"></div>
+    </div>
+
+    <div class="timer-display">
+      <div class="timer-label">Next Round</div>
+      <div class="timer-value" id="timerValue">10.00</div>
+    </div>
+    
+    <div class="stats-row">
+      <div class="stat-item">
+        <div class="stat-icon moon">🌙</div>
+        <span id="moonCount">40</span>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon sun">☀️</div>
+        <span id="sunCount">7</span>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon star">⭐</div>
+        <span id="starCount">53</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bet-input-section">
+    <div class="bet-input-row">
+      <span>💰</span>
+      <input type="number" class="bet-input" id="betAmount" placeholder="Enter bet amount..." value="10" min="0.01" step="0.01">
+      <div class="quick-bet-btns">
+        <span class="balance-small">💰 <span id="userBalance"><%= user.credits.toFixed(2) %></span></span>
+        <button class="quick-btn" onclick="clearBet()">CLEAR</button>
+        <button class="quick-btn" onclick="adjustBet(0.01)">+0.01</button>
+        <button class="quick-btn" onclick="adjustBet(0.1)">+0.1</button>
+        <button class="quick-btn" onclick="adjustBet(1)">+1</button>
+        <button class="quick-btn" onclick="adjustBet(10)">+10</button>
+        <button class="quick-btn" onclick="adjustBet(100)">+100</button>
+        <button class="quick-btn" onclick="halfBet()">1/2</button>
+        <button class="quick-btn" onclick="doubleBet()">X2</button>
+        <button class="quick-btn" onclick="maxBet()">MAX</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bet-options">
+    <div class="bet-option" id="moonBet" onclick="selectBet('moon')">
+      <div class="bet-option-icon moon-icon">🌙</div>
+      <div class="bet-option-title">PLACE BET</div>
+      <div class="bet-option-win">WIN 2x</div>
+    </div>
+
+    <div class="bet-option" id="sunBet" onclick="selectBet('sun')">
+      <div class="bet-option-icon sun-icon">☀️</div>
+      <div class="bet-option-title">PLACE BET</div>
+      <div class="bet-option-win">WIN 14x</div>
+    </div>
+
+    <div class="bet-option" id="starBet" onclick="selectBet('star')">
+      <div class="bet-option-icon star-icon">⭐</div>
+      <div class="bet-option-title">PLACE BET</div>
+      <div class="bet-option-win">WIN 2x</div>
+    </div>
+  </div>
+
+  <div class="bets-section">
+    <div class="bets-column">
+      <h3>🌙 PLACE BET</h3>
+      <div class="bets-total">
+        <span id="moonBetsCount">4 Bets Total</span>
+        <span>💰 <span id="moonBetsTotal">11.47</span></span>
+      </div>
+      <div id="moonBetsList">
+        <div class="bet-item">
+          <div class="bet-item-icon moon-icon">🌙</div>
+          <span class="bet-item-user"><%= user.username %></span>
+          <span class="bet-item-amount">0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bets-column">
+      <h3>☀️ PLACE BET</h3>
+      <div class="bets-total">
+        <span id="sunBetsCount">5 Bets Total</span>
+        <span>💰 <span id="sunBetsTotal">21.06</span></span>
+      </div>
+      <div id="sunBetsList">
+        <div class="bet-item">
+          <div class="bet-item-icon sun-icon">☀️</div>
+          <span class="bet-item-user"><%= user.username %></span>
+          <span class="bet-item-amount">0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bets-column">
+      <h3>⭐ PLACE BET</h3>
+      <div class="bets-total">
+        <span id="starBetsCount">0 Bets Total</span>
+        <span>💰 <span id="starBetsTotal">0.00</span></span>
+      </div>
+      <div id="starBetsList">
+        <div class="bet-item">
+          <div class="bet-item-icon star-icon">⭐</div>
+          <span class="bet-item-user"><%= user.username %></span>
+          <span class="bet-item-amount">0.00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <a href="/lobby" class="btn-back" style="display: inline-block; margin-top: 2rem;">← Back to Lobby</a>
+</div>
+
+<div class="result-popup" id="resultPopup"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// Declare all variables first
+let userCredits = Number('<%= user.credits %>')
+let selectedBetType = null
+let isSpinning = false
+let moonBets = []
+let sunBets = []
+let starBets = []
+
+let lastResults = [] // Track last 100 results
+
+// Update stats display
+function updateStats() {
+  const moonCount = lastResults.filter(r => r === '🌙').length
+  const sunCount = lastResults.filter(r => r === '☀️').length
+  const starCount = lastResults.filter(r => r === '⭐').length
+  
+  document.getElementById('moonCount').textContent = moonCount
+  document.getElementById('sunCount').textContent = sunCount
+  document.getElementById('starCount').textContent = starCount
+}
+
+const socket = io()
+const username = '<%= user.username %>'
+const userId = '<%= user._id %>'
+
+let timer = 10.00
+let timerInterval = null
+let canBet = true
+let activeBets = []
+let roundInProgress = false
+
+// Socket event listeners for multiplayer
+socket.on('roulette:init', (data) => {
+  console.log('Joined roulette game:', data)
+  timer = parseFloat(data.timer)
+  canBet = data.canBet
+  lastResults = data.history
+  updateStats()
+})
+
+socket.on('roulette:timerUpdate', (data) => {
+  timer = parseFloat(data.timer)
+  document.getElementById('timerValue').textContent = data.timer
+})
+
+socket.on('roulette:roundStarted', () => {
+  console.log('New round started')
+  canBet = true
+  activeBets = []
+  roundInProgress = false
+  
+  // Clear all bet lists
+  document.getElementById('moonBetsList').innerHTML = ''
+  document.getElementById('sunBetsList').innerHTML = ''
+  document.getElementById('starBetsList').innerHTML = ''
+  
+  moonBets = []
+  sunBets = []
+  starBets = []
+  updateTotals()
+  
+  generateReel()
+})
+
+socket.on('roulette:clearBets', () => {
+  // Clear bet displays
+  document.getElementById('moonBetsList').innerHTML = ''
+  document.getElementById('sunBetsList').innerHTML = ''
+  document.getElementById('starBetsList').innerHTML = ''
+  moonBets = []
+  sunBets = []
+  starBets = []
+  updateTotals()
+})
+
+socket.on('roulette:betPlaced', (data) => {
+  console.log('Bet placed:', data)
+  addBetToList(data.type, data.username, data.amount)
+})
+
+socket.on('roulette:betAccepted', (data) => {
+  userCredits = data.credits
+  document.getElementById('userBalance').textContent = userCredits.toFixed(2)
+})
+
+socket.on('roulette:spin', (data) => {
+  console.log('Spinning to:', data.winningSymbol)
+  roundInProgress = true
+  document.getElementById('rollingText').style.display = 'block'
+  animateReel(data.winningSymbol)
+})
+
+socket.on('roulette:result', (data) => {
+  console.log('Round result:', data)
+  document.getElementById('rollingText').style.display = 'none'
+  
+  // Update history
+  lastResults = data.history
+  updateStats()
+  
+  // Find my result
+  const myResult = data.results.find(r => r.userId === userId)
+  if (myResult) {
+    userCredits = myResult.credits
+    document.getElementById('userBalance').textContent = userCredits.toFixed(2)
+    
+    const popup = document.getElementById('resultPopup')
+    if (myResult.totalWinnings > 0) {
+      popup.textContent = `🎉 You won ${myResult.totalWinnings.toFixed(2)} Brap Coins!`
+      popup.className = 'result-popup win show'
+    } else {
+      popup.textContent = `😢 Better luck next time!`
+      popup.className = 'result-popup loss show'
+    }
+    
+    setTimeout(() => {
+      popup.classList.remove('show')
+    }, 3000)
+  }
+})
+
+socket.on('roulette:error', (data) => {
+  alert(data.message)
+})
+
+// Generate initial reel with looping animation
+function generateReel() {
+  const container = document.getElementById('reelContainer')
+  const symbols = []
+  
+  // Create repeating symbols for seamless loop (40 total)
+  for (let i = 0; i < 40; i++) {
+    const symbol = i % 2 === 0 ? '🌙' : '⭐'
+    symbols.push(`
+      <div class="reel-slot ${symbol === '🌙' ? 'moon' : 'star'}">
+        ${symbol}
+      </div>
+    `)
+  }
+  
+  container.innerHTML = symbols.join('')
+  container.classList.remove('stopping')
+  container.classList.add('looping')
+}
+
+// Animate reel spinning
+function animateReel(finalSymbol) {
+  const container = document.getElementById('reelContainer')
+  
+  // Stop the loop, create final strip
+  container.classList.remove('looping')
+  
+  const symbols = []
+  
+  // 100 random symbols
+  for (let i = 0; i < 100; i++) {
+    const symbol = Math.random() > 0.5 ? '🌙' : '⭐'
+    symbols.push(`
+      <div class="reel-slot ${symbol === '🌙' ? 'moon' : 'star'}">
+        ${symbol}
+      </div>
+    `)
+  }
+  
+  // Add ONE winning symbol at position 100
+  symbols.push(`
+    <div class="reel-slot ${finalSymbol === '🌙' ? 'moon' : 'star'}">
+      ${finalSymbol}
+    </div>
+  `)
+  
+  // Add 20 more random symbols AFTER the winner for smooth ending
+  for (let i = 0; i < 20; i++) {
+    const symbol = Math.random() > 0.5 ? '🌙' : '⭐'
+    symbols.push(`
+      <div class="reel-slot ${symbol === '🌙' ? 'moon' : 'star'}">
+        ${symbol}
+      </div>
+    `)
+  }
+  
+  container.innerHTML = symbols.join('')
+  
+  // Start stopping animation
+  setTimeout(() => {
+    container.classList.add('stopping')
+  }, 50)
+}
+
+// Start timer countdown
+function startTimer() {
+  timer = 10.00
+  canBet = true
+  activeBets = []
+  
+  // Clear all bet lists
+  document.getElementById('moonBetsList').innerHTML = ''
+  document.getElementById('sunBetsList').innerHTML = ''
+  document.getElementById('starBetsList').innerHTML = ''
+  
+  moonBets = []
+  sunBets = []
+  starBets = []
+  
+  updateTotals()
+  
+  if (timerInterval) clearInterval(timerInterval)
+  
+  timerInterval = setInterval(() => {
+    timer -= 0.01
+    
+    if (timer <= 0) {
+      timer = 0
+      canBet = false
+      clearInterval(timerInterval)
+      // Execute all active bets
+      if (activeBets.length > 0) {
+        executeBets()
+      } else {
+        setTimeout(() => startTimer(), 2000)
+      }
+    }
+    document.getElementById('timerValue').textContent = Math.max(0, timer).toFixed(2)
+  }, 10)
+}
+
+// Execute all bets when timer hits 0
+async function executeBets() {
+  roundInProgress = true
+  document.getElementById('rollingText').style.display = 'block'
+  
+  // Process all bets
+  let totalWinnings = 0
+  let wonAnyBet = false
+  let resultSymbol = '🌙'
+  
+  try {
+    // Make API call to get the winning symbol
+    const firstBet = activeBets[0]
+    const res = await fetch('/games/roulette', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        betAmount: firstBet.amount, 
+        betType: firstBet.betType, 
+        betValue: firstBet.betValue 
+      })
+    })
+    
+    const data = await res.json()
+    console.log('Response:', data)
+    
+    if (data.success) {
+      // Determine result symbol from first bet
+      if (data.result === 'win') {
+        resultSymbol = firstBet.type === 'moon' ? '🌙' : firstBet.type === 'sun' ? '☀️' : '⭐'
+      } else {
+        resultSymbol = firstBet.type === 'moon' ? '⭐' : '🌙'
+      }
+      
+      // Now check ALL bets against the winning symbol
+      for (const bet of activeBets) {
+        let betWon = false
+        let betWinAmount = 0
+        
+        if (bet.type === 'moon' && resultSymbol === '🌙') {
+          betWon = true
+          betWinAmount = bet.amount * 2
+        } else if (bet.type === 'star' && resultSymbol === '⭐') {
+          betWon = true
+          betWinAmount = bet.amount * 2
+        } else if (bet.type === 'sun' && resultSymbol === '☀️') {
+          betWon = true
+          betWinAmount = bet.amount * 14
+        }
+        
+        if (betWon) {
+          totalWinnings += betWinAmount
+          wonAnyBet = true
+        }
+      }
+      
+      // Update user credits
+      userCredits += totalWinnings
+      document.getElementById('userBalance').textContent = userCredits.toFixed(2)
+      
+      // Animate reel
+      animateReel(resultSymbol)
+      
+      // Wait for stopping animation to complete (3 seconds) before showing result
+      setTimeout(() => {
+        document.getElementById('rollingText').style.display = 'none'
+        
+        // Add result to history and update stats
+        lastResults.push(resultSymbol)
+        if (lastResults.length > 100) {
+          lastResults.shift()
+        }
+        updateStats()
+        
+        const popup = document.getElementById('resultPopup')
+        if (wonAnyBet) {
+          popup.textContent = `🎉 You won ${totalWinnings.toFixed(2)} Brap Coins!`
+          popup.className = 'result-popup win show'
+        } else {
+          const totalBet = activeBets.reduce((sum, bet) => sum + bet.amount, 0)
+          popup.textContent = `😢 You lost ${totalBet.toFixed(2)} Brap Coins`
+          popup.className = 'result-popup loss show'
+        }
+        
+        setTimeout(() => {
+          popup.classList.remove('show')
+          roundInProgress = false
+          generateReel()
+          startTimer()
+        }, 3000)
+        
+        socket.emit('game:result', {
+          username,
+          gameType: 'roulette',
+          result: wonAnyBet ? 'win' : 'loss',
+          amount: wonAnyBet ? totalWinnings : activeBets.reduce((sum, bet) => sum + bet.amount, 0)
+        })
+      }, 3200)
+    } else {
+      document.getElementById('rollingText').style.display = 'none'
+      alert(data.error || 'Bet failed')
+      roundInProgress = false
+      startTimer()
+    }
+  } catch (error) {
+    console.error('Bet error:', error)
+    document.getElementById('rollingText').style.display = 'none'
+    alert('Network error. Please try again.')
+    roundInProgress = false
+    startTimer()
+  }
+}
+
+function clearBet() {
+  document.getElementById('betAmount').value = ''
+}
+
+function adjustBet(amount) {
+  const input = document.getElementById('betAmount')
+  const current = parseFloat(input.value) || 0
+  input.value = Math.max(0.01, current + amount).toFixed(2)
+}
+
+function halfBet() {
+  const input = document.getElementById('betAmount')
+  const current = parseFloat(input.value) || 0
+  input.value = Math.max(0.01, current / 2).toFixed(2)
+}
+
+function doubleBet() {
+  const input = document.getElementById('betAmount')
+  const current = parseFloat(input.value) || 0
+  input.value = (current * 2).toFixed(2)
+}
+
+function maxBet() {
+  document.getElementById('betAmount').value = userCredits.toFixed(2)
+}
+
+function selectBet(type) {
+  if (!canBet || roundInProgress) {
+    alert('Betting closed for this round')
+    return
+  }
+
+  const betAmount = parseFloat(document.getElementById('betAmount').value)
+  if (!betAmount || betAmount <= 0) {
+    alert('Please enter a valid bet amount')
+    return
+  }
+
+  if (betAmount > userCredits) {
+    alert('Insufficient credits')
+    return
+  }
+
+  // Send bet to server via socket
+  socket.emit('roulette:placeBet', {
+    userId,
+    username,
+    type,
+    amount: betAmount
+  })
+}
+
+// Initialize
+document.getElementById('rollingText').style.display = 'none'
+updateStats() // Set all stats to 0 initially
+generateReel()
+// Timer is now controlled by server via sockets
+
+function addBetToList(type, user, amount) {
+  const betItem = `
+    <div class="bet-item">
+      <div class="bet-item-icon ${type}-icon">${type === 'moon' ? '🌙' : type === 'sun' ? '☀️' : '⭐'}</div>
+      <span class="bet-item-user">${user}</span>
+      <span class="bet-item-amount">${amount.toFixed(2)}</span>
+    </div>
+  `
+  
+  const listId = type + 'BetsList'
+  const list = document.getElementById(listId)
+  list.insertAdjacentHTML('afterbegin', betItem)
+  
+  // Update totals
+  if (type === 'moon') moonBets.push(amount)
+  else if (type === 'sun') sunBets.push(amount)
+  else starBets.push(amount)
+  
+  updateTotals()
+}
+
+function updateTotals() {
+  const moonTotal = moonBets.reduce((a, b) => a + b, 0)
+  const sunTotal = sunBets.reduce((a, b) => a + b, 0)
+  const starTotal = starBets.reduce((a, b) => a + b, 0)
+  
+  document.getElementById('moonBetsCount').textContent = `${moonBets.length} Bets Total`
+  document.getElementById('sunBetsCount').textContent = `${sunBets.length} Bets Total`
+  document.getElementById('starBetsCount').textContent = `${starBets.length} Bets Total`
+  
+  document.getElementById('moonBetsTotal').textContent = moonTotal.toFixed(2)
+  document.getElementById('sunBetsTotal').textContent = sunTotal.toFixed(2)
+  document.getElementById('starBetsTotal').textContent = starTotal.toFixed(2)
+}
+
+// Initialize
+document.getElementById('rollingText').style.display = 'none'
+</script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,15 @@
+<nav class="navbar">
+  <div class="nav-container">
+    <div class="nav-brand"> Brap Casino</div>
+    <% if (typeof user !== 'undefined') { %>
+      <div class="nav-links">
+        <a href="/">Shop</a>
+        <a href="/lobby">Lobby</a>
+        <a href="/chat">Chat</a>
+        <a href="/leaderboard">Leaderboard</a>
+        <div class="nav-credits"> <%= user.credits.toFixed(2) %> Brap Coins</div>
+        <button onclick="logout()" class="btn-logout">Logout</button>
+      </div>
+    <% } %>
+  </div>
+</nav>

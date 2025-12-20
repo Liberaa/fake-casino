@@ -1,0 +1,147 @@
+<%- include('partials/header') %>
+<%- include('partials/navbar', { user }) %>
+
+<style>
+.leaderboard-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+}
+
+.tab-btn {
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+</style>
+
+<div class="leaderboard-container">
+  <h1>🏆 Leaderboard</h1>
+  
+  <div class="leaderboard-tabs">
+    <button class="tab-btn active" onclick="switchTab('credits')">💰 Top Balances</button>
+    <button class="tab-btn" onclick="switchTab('wagered')">💸 Total Wagered</button>
+    <button class="tab-btn" onclick="switchTab('bigwin')">🎰 Biggest Win</button>
+  </div>
+
+  <div class="leaderboard-table">
+    <div class="table-header" id="tableHeader">
+      <div>Rank</div>
+      <div>Player</div>
+      <div>Brap Coins</div>
+      <div>Wins</div>
+      <div>Losses</div>
+    </div>
+    <div id="leaderboardList"></div>
+  </div>
+</div>
+
+<script>
+let currentTab = 'credits'
+
+async function loadLeaderboard() {
+  const res = await fetch(`/api/leaderboard?type=${currentTab}`)
+  const data = await res.json()
+  
+  const list = document.getElementById('leaderboardList')
+  const header = document.getElementById('tableHeader')
+  list.innerHTML = ''
+  
+  // Update header based on tab
+  if (currentTab === 'credits') {
+    header.innerHTML = `
+      <div>Rank</div>
+      <div>Player</div>
+      <div>Brap Coins</div>
+      <div>Wins</div>
+      <div>Losses</div>
+    `
+  } else if (currentTab === 'wagered') {
+    header.innerHTML = `
+      <div>Rank</div>
+      <div>Player</div>
+      <div>Total Wagered</div>
+      <div>Games Played</div>
+      <div>W/L Ratio</div>
+    `
+  } else if (currentTab === 'bigwin') {
+    header.innerHTML = `
+      <div>Rank</div>
+      <div>Player</div>
+      <div>Biggest Win</div>
+      <div>Game Type</div>
+      <div>Date</div>
+    `
+  }
+  
+  data.leaderboard.forEach((player, index) => {
+    const row = document.createElement('div')
+    row.className = 'table-row'
+    
+    let rankIcon = '👤'
+    if (index === 0) rankIcon = '🥇'
+    else if (index === 1) rankIcon = '🥈'
+    else if (index === 2) rankIcon = '🥉'
+    
+    if (currentTab === 'credits') {
+      row.innerHTML = `
+        <div>${rankIcon} ${index + 1}</div>
+        <div>${player.username}</div>
+        <div> ${player.credits.toFixed(2)}</div>
+        <div> ${player.totalWins}</div>
+        <div> ${player.totalLosses}</div>
+      `
+    } else if (currentTab === 'wagered') {
+      const ratio = player.totalGames > 0 ? ((player.totalWins / player.totalGames) * 100).toFixed(1) : '0.0'
+      row.innerHTML = `
+        <div>${rankIcon} ${index + 1}</div>
+        <div>${player.username}</div>
+        <div> ${player.totalWagered.toFixed(2)}</div>
+        <div> ${player.totalGames}</div>
+        <div> ${ratio}%</div>
+      `
+    } else if (currentTab === 'bigwin') {
+      const date = new Date(player.date).toLocaleDateString()
+      row.innerHTML = `
+        <div>${rankIcon} ${index + 1}</div>
+        <div>${player.username}</div>
+        <div> ${player.biggestWin.toFixed(2)}</div>
+        <div>${player.gameType || 'N/A'}</div>
+        <div> ${date}</div>
+      `
+    }
+    
+    list.appendChild(row)
+  })
+}
+
+function switchTab(tab) {
+  currentTab = tab
+  
+  // Update active tab
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'))
+  event.target.classList.add('active')
+  
+  loadLeaderboard()
+}
+
+loadLeaderboard()
+setInterval(loadLeaderboard, 10000)
+</script>
+
+<%- include('partials/footer') %>

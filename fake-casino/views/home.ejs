@@ -1,0 +1,102 @@
+<%- include('partials/header') %>
+
+<div class="home-container">
+  <div class="hero">
+    <h1>Brap Casino</h1>
+    <p class="subtitle">Play with fake Brap Coins, compete with friends!</p>
+    <p class="warning">⚠️ - Don't lose your Brap coin!</p>
+  </div>
+
+  <div class="auth-section">
+    <div class="auth-card">
+      <h2>Login</h2>
+      <form id="loginForm">
+        <input type="text" id="loginUsername" placeholder="Username" required>
+        <input type="password" id="loginPassword" placeholder="Password" required>
+        <button type="submit" class="btn-primary">Login</button>
+      </form>
+      <p class="error-message" id="loginError"></p>
+    </div>
+
+    <div class="auth-card">
+      <h2>Register</h2>
+      <form id="registerForm">
+        <input type="text" id="registerUsername" placeholder="Username" required>
+        <input type="password" id="registerPassword" placeholder="Password" required>
+        <button type="submit" class="btn-primary">Register</button>
+      </form>
+      <p class="info-message">Start with 1000 Brap Coins!</p>
+      <p class="error-message" id="registerError"></p>
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <h3> Multiple Games</h3>
+      <p>Slots, Roulette, Blackjack</p>
+    </div>
+    <div class="feature">
+      <h3> Live Chat</h3>
+      <p>Talk with other players</p>
+    </div>
+    <div class="feature">
+      <h3> Leaderboard</h3>
+      <p>Compete for the top spot</p>
+    </div>
+    <div class="feature">
+      <h3> Daily Bonus</h3>
+      <p>Free credits every day</p>
+    </div>
+  </div>
+
+  <div class="support-section">
+    <p>Enjoy the casino? Support the developer!</p>
+    <a href="https://www.buymeacoffee.com/yourusername" target="_blank" class="btn-support">
+       Buy me a Coffee or Coins!
+    </a>
+  </div>
+</div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const username = document.getElementById('loginUsername').value
+  const password = document.getElementById('loginPassword').value
+  
+  const res = await fetch('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  })
+  
+  const data = await res.json()
+  
+  if (data.success) {
+    window.location.href = '/lobby'
+  } else {
+    document.getElementById('loginError').textContent = data.error
+  }
+})
+
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const username = document.getElementById('registerUsername').value
+  const password = document.getElementById('registerPassword').value
+  
+  const res = await fetch('/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  })
+  
+  const data = await res.json()
+  
+  if (data.success) {
+    window.location.href = '/lobby'
+  } else {
+    document.getElementById('registerError').textContent = data.error
+  }
+})
+</script>
+
+<%- include('partials/footer') %>

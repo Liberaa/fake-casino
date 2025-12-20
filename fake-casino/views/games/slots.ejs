@@ -1,0 +1,899 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar', { user }) %>
+
+<div class="cabinet">
+  <div class="slot-machine">
+    <div class="header">
+      <h1 class="title">MEGAWAYS SLOTS</h1>
+      <div class="ways-to-win" id="waysToWin">Ways to Win: 0</div>
+    </div>
+
+    <div id="fsBanner" class="banner hidden"></div>
+
+    <div class="game-area">
+      <div class="reels-container" id="reelsContainer"></div>
+    </div>
+
+    <div class="controls-row">
+      <button id="turboBtn" class="hud-btn">Turbo: Off</button>
+      <div class="balance">BALANCE: <span id="balanceAmount"></span> Coins</div>
+      <button class="spin-btn" id="spinBtn">SPIN</button>
+      <div class="bet">BET: <span id="betAmount">1.00</span> Coins</div>
+      <button id="maxBet" class="btn btn-yellow">MAX</button>
+      <button id="betDown" class="btn btn-red">-</button>
+      <button id="betUp" class="btn btn-green">+</button>
+      <button id="autoBtn" class="hud-btn">Auto 10</button>
+    </div>
+
+    <div class="info-panel">
+      <div class="info-box">
+        <div class="info-label">Total Spins</div>
+        <div class="info-value" id="totalSpins">0</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Free Spins</div>
+        <div class="info-value" id="freeSpins">0</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Last Win</div>
+        <div class="info-value" id="lastWinAmount">0.00</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Max Ways</div>
+        <div class="info-value">117,649</div>
+      </div>
+    </div>
+
+    <a href="/lobby" class="btn-back">Back to Lobby</a>
+  </div>
+</div>
+
+<style>
+* { 
+  margin: 0; 
+  padding: 0; 
+  box-sizing: border-box; 
+}
+
+.cabinet {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 100px);
+  padding: 20px;
+}
+
+.slot-machine {
+  width: 100%;
+  max-width: 1200px;
+  border-radius: 12px;
+  padding: 30px 20px;
+  background: #111827;
+  border: 1px solid #1f2937;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.title {
+  color: #60a5fa;
+  font-size: 2.5em;
+  font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(96, 165, 250, 0.3);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.ways-to-win {
+  color: #9ca3af;
+  font-size: 1.2em;
+}
+
+.banner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #2563eb;
+  color: #fff;
+  padding: 20px 50px;
+  font-weight: 700;
+  font-size: 2em;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.6);
+  transition: all 0.3s;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.banner.show {
+  opacity: 1;
+}
+
+.banner.hidden {
+  display: none;
+}
+
+.game-area {
+  background: #1f2937;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.reels-container {
+  display: flex;
+  height: 600px;
+  overflow: hidden;
+  background: #000;
+}
+
+.reel {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  height: 600px;
+}
+
+.reel-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(0);
+  will-change: transform;
+}
+
+.symbol {
+  width: 100%;
+  height: 100px;
+  flex-shrink: 0;
+  display: block;
+  position: relative;
+}
+
+.symbol img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.symbol.marked {
+  box-shadow: inset 0 0 0 4px #60a5fa, 0 0 30px rgba(96, 165, 250, 1);
+  animation: pulse 0.5s;
+  z-index: 10;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.symbol.vanish {
+  animation: vanish 0.3s forwards;
+}
+
+@keyframes vanish {
+  to {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
+.controls-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.balance, .bet {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: #60a5fa;
+  background: #1f2937;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #374151;
+}
+
+.spin-btn {
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.4em;
+  padding: 15px 50px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  border: 2px solid #3b82f6;
+}
+
+.spin-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+}
+
+.spin-btn:active {
+  transform: translateY(0);
+}
+
+.spin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1em;
+  transition: all 0.2s;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn-yellow {
+  background: #fbbf24;
+  color: #000;
+}
+
+.btn-yellow:hover {
+  background: #f59e0b;
+}
+
+.btn-red {
+  background: #ef4444;
+  color: #fff;
+}
+
+.btn-red:hover {
+  background: #dc2626;
+}
+
+.btn-green {
+  background: #10b981;
+  color: #fff;
+}
+
+.btn-green:hover {
+  background: #059669;
+}
+
+.hud-btn {
+  background: #1f2937;
+  color: #60a5fa;
+  border: 2px solid #374151;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.hud-btn:hover {
+  background: #374151;
+  border-color: #4b5563;
+}
+
+.info-panel {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.info-box {
+  background: #1f2937;
+  border: 1px solid #374151;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.info-label {
+  font-size: 0.9em;
+  color: #9ca3af;
+  margin-bottom: 5px;
+}
+
+.info-value {
+  font-size: 1.3em;
+  font-weight: 600;
+  color: #60a5fa;
+}
+
+.btn-back {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 10px 20px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  color: #e5e7eb;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.btn-back:hover {
+  background: #374151;
+  border-color: #4b5563;
+}
+
+.game-area.shake {
+  animation: shake 0.3s;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+}
+
+@media (max-width: 768px) {
+  .slot-machine {
+    padding: 15px;
+  }
+
+  .title {
+    font-size: 2em;
+  }
+
+  .reels-container {
+    height: 400px;
+  }
+
+  .info-panel {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .controls-row {
+    gap: 10px;
+  }
+
+  .spin-btn {
+    font-size: 1.2em;
+    padding: 12px 40px;
+  }
+}
+</style>
+
+<script>
+let socket = null;
+if (typeof io !== 'undefined') {
+  socket = io();
+}
+
+const username = '<%= user.username %>';
+let balance = Number('<%= user.credits %>') || 0;
+let currentBet = 1.00;
+let totalSpins = 0;
+let currentWinAmount = 0;
+let isSpinning = false;
+let freeSpins = 0;
+let turbo = false;
+let autoCount = 0;
+let currentReelConfig = [2, 2, 2, 2, 2, 2]; // Track symbols per reel
+let teaseReel2 = false;
+let reel0Scatter = false;
+let reel1Scatter = false;
+
+const BET_LEVELS = [0.10, 0.25, 0.50, 1.00, 2.00, 5.00, 10.00, 25.00, 50.00, 100.00, 1000.00, 2500.00, 5000.00,   10000.00,   25000.00, 50000.00, 100000.00];
+let currentBetIndex = 3;
+
+const COMMON = [
+  { name: 'sym1', src: '/img/1.png', payout: 0.5 },
+  { name: 'sym2', src: '/img/2.png', payout: 0.6 },
+  { name: 'sym3', src: '/img/3.png', payout: 0.7 },
+  { name: 'sym4', src: '/img/4.png', payout: 0.8 },
+  { name: 'sym5', src: '/img/5.png', payout: 1.0 },
+  { name: 'sym6', src: '/img/6.png', payout: 1.2 },
+  { name: 'sym7', src: '/img/7.png', payout: 1.5 },
+  { name: 'sym8', src: '/img/8.png', payout: 2.0 },
+  { name: 'sym9', src: '/img/9.png', payout: 3.0 },
+  { name: 'sym10', src: '/img/10.png', payout: 5.0 }
+];
+
+const WILD = { name: 'wild', src: '/img/wild.png', isWild: true };
+const SCATTER = { name: 'scatter', src: '/img/scatter.png', isScatter: true };
+
+const CHAIN_MULTIPLIERS = { 3: 1, 4: 2, 5: 5, 6: 10 };
+
+function pickRandomSymbol() {
+  const r = Math.random();
+  if (r < 0.0005) return WILD; // Changed from 0.02 to 0.001 (0.1% chance - 10x rarer)
+  if (r < 0.02) return SCATTER; // Keep scatter at 2%
+  return COMMON[Math.floor(Math.random() * COMMON.length)];
+}
+
+function updateDisplay() {
+  document.getElementById('betAmount').textContent = currentBet.toFixed(2);
+  document.getElementById('balanceAmount').textContent = balance.toFixed(2);
+  document.getElementById('lastWinAmount').textContent = currentWinAmount.toFixed(2);
+  document.getElementById('totalSpins').textContent = totalSpins;
+  document.getElementById('freeSpins').textContent = freeSpins;
+}
+
+function calculateWaysToWin() {
+  return currentReelConfig.reduce(function(a, b) { return a * b; }, 1);
+}
+
+function updateWaysToWin() {
+  document.getElementById('waysToWin').textContent = 'Ways to Win: ' + calculateWaysToWin().toLocaleString();
+}
+
+function createSymbol(symbolData) {
+  const s = symbolData || pickRandomSymbol();
+  const el = document.createElement('div');
+  el.className = 'symbol';
+  el.dataset.symbol = s.name;
+  
+  const img = document.createElement('img');
+  img.src = s.src;
+  img.alt = s.name;
+  img.draggable = false;
+  
+  el.appendChild(img);
+  
+  if (s.isWild) el.dataset.wild = '1';
+  if (s.isScatter) el.dataset.scatter = '1';
+  
+  return el;
+}
+
+function initGame() {
+  const reelBox = document.getElementById('reelsContainer');
+  reelBox.innerHTML = '';
+  
+  for (let i = 0; i < 6; i++) {
+    const reel = document.createElement('div');
+    reel.className = 'reel';
+    reel.id = 'reel-' + i;
+    
+    const inside = document.createElement('div');
+    inside.className = 'reel-content';
+    inside.id = 'reel-content-' + i;
+    
+    reel.appendChild(inside);
+    reelBox.appendChild(reel);
+    
+    generateInitialReelSymbols(i);
+  }
+  
+  updateWaysToWin();
+  updateDisplay();
+}
+
+function generateInitialReelSymbols(idx) {
+  const rows = Math.floor(Math.random() * 6) + 2; // 2-7 symbols
+  currentReelConfig[idx] = rows;
+  const reel = document.getElementById('reel-content-' + idx);
+  const symbolHeight = 600 / rows;
+
+  reel.innerHTML = '';
+  for (let j = 0; j < 12 + rows; j++) {
+    const sym = createSymbol();
+    sym.style.height = symbolHeight + 'px';
+    reel.appendChild(sym);
+  }
+  reel.style.transform = 'translateY(-' + (symbolHeight * 12) + 'px)';
+}
+
+async function spin() {
+  if (isSpinning) return;
+
+  if (freeSpins === 0) {
+    if (balance < currentBet) {
+      showMessage('Insufficient funds!', '#ef4444');
+      return;
+    }
+    
+    const res = await fetch('/games/slots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ betAmount: currentBet })
+    });
+    
+    const data = await res.json();
+    if (!data.success) {
+      showMessage('Bet failed!', '#ef4444');
+      return;
+    }
+    
+    balance = data.credits;
+  } else {
+    freeSpins--;
+  }
+
+  isSpinning = true;
+  totalSpins++;
+  currentWinAmount = 0;
+  updateDisplay();
+  document.getElementById('spinBtn').disabled = true;
+
+  const newCfg = Array.from({ length: 6 }, function() { 
+    return Math.floor(Math.random() * 6) + 2; // 2-7 symbols per reel
+  });
+  
+  for (let i = 0; i < 6; i++) {
+    startReelSpin(i, newCfg[i]);
+  }
+}
+
+function startReelSpin(idx, rows) {
+  const reelBox = document.getElementById('reel-' + idx);
+  const reel = document.getElementById('reel-content-' + idx);
+  const symbolHeight = 600 / rows;
+  let dur = (turbo ? 0.3 : 0.6) + idx * (turbo ? 0.1 : 0.2);
+
+  const isTease = (idx === 2 && teaseReel2);
+  if (isTease) {
+    dur += 0.8;
+    teaseReel2 = false;
+  }
+
+  reel.innerHTML = '';
+
+  const spinSyms = Array.from({ length: 12 }, function() { return createSymbol(); });
+  
+  // Check if ANY previous reel has a wild
+  let boardHasWild = false;
+  for (let i = 0; i < idx; i++) {
+    const prevReel = document.getElementById('reel-content-' + i);
+    if (prevReel) {
+      const prevSymbols = Array.from(prevReel.children).slice(0, currentReelConfig[i]);
+      if (prevSymbols.some(function(el) { return el.dataset.wild === '1'; })) {
+        boardHasWild = true;
+        break;
+      }
+    }
+  }
+  
+  // Generate final symbols
+  const finalSyms = [];
+  for (let i = 0; i < rows; i++) {
+    let sym = createSymbol();
+    
+    // If board already has a wild, don't place another
+    if (boardHasWild && sym.name === 'wild') {
+      while (sym.name === 'wild') {
+        sym = createSymbol();
+      }
+    }
+    
+    finalSyms.push(sym);
+  }
+
+  if (isTease) {
+    const row = Math.floor(Math.random() * rows);
+    finalSyms[row] = createSymbol(SCATTER);
+  }
+
+  spinSyms.concat(finalSyms).forEach(function(s) {
+    s.style.height = symbolHeight + 'px';
+    reel.appendChild(s);
+  });
+
+  reel.style.transition = 'none';
+  reel.style.transform = 'translateY(-' + (symbolHeight * 12) + 'px)';
+  reel.offsetHeight;
+  
+  setTimeout(function() {
+    reel.style.transition = 'transform ' + dur + 's ease-out';
+    reel.style.transform = 'translateY(0)';
+  }, 10);
+
+  setTimeout(function() {
+    currentReelConfig[idx] = rows;
+
+    const vp = reelBox.getBoundingClientRect();
+    const hasVisScatter = Array.from(reel.children).slice(0, rows).some(function(el) {
+      return el.dataset.scatter === '1';
+    });
+    
+    if (idx === 0) reel0Scatter = hasVisScatter;
+    if (idx === 1) reel1Scatter = hasVisScatter;
+    if (idx === 1 && reel0Scatter && reel1Scatter) teaseReel2 = true;
+
+    if (idx === 5) {
+      setTimeout(function() {
+        isSpinning = false;
+        document.getElementById('spinBtn').disabled = false;
+        cascade();
+      }, 200);
+    }
+    updateWaysToWin();
+  }, dur * 1000 + 100);
+}
+
+
+function highlightMatchingSymbols() {
+  document.querySelectorAll('.symbol.marked').forEach(function(e) { 
+    e.classList.remove('marked'); 
+  });
+
+  const reelsVis = Array.from({ length: 6 }, function(_, i) {
+    const reelContent = document.getElementById('reel-content-' + i);
+    const rows = currentReelConfig[i];
+    return Array.from(reelContent.children).slice(0, rows);
+  });
+
+  const MIN = 3;
+  let win = false;
+  let totalWinAmount = 0;
+  let winningReels = new Set(); // Track which reels have wins
+
+  COMMON.forEach(function(symData) {
+    const hasInFirstReel = reelsVis[0].some(function(el) { 
+      return el.dataset.symbol === symData.name || el.dataset.wild; 
+    });
+    
+    if (!hasInFirstReel) return;
+
+    let chain = 0;
+    for (let i = 0; i < 6; i++) {
+      const hasInReel = reelsVis[i].some(function(el) { 
+        return el.dataset.symbol === symData.name || el.dataset.wild; 
+      });
+      if (hasInReel) chain++;
+      else break;
+    }
+    
+    if (chain >= MIN) {
+      win = true;
+      const symbolPayout = symData.payout * currentBet;
+      const chainMultiplier = CHAIN_MULTIPLIERS[chain] || CHAIN_MULTIPLIERS[6];
+      const winAmount = symbolPayout * chainMultiplier;
+      totalWinAmount += winAmount;
+
+      for (let i = 0; i < chain; i++) {
+        winningReels.add(i); // Mark this reel as having a win
+        reelsVis[i]
+          .filter(function(el) { 
+            return el.dataset.symbol === symData.name || el.dataset.wild; 
+          })
+          .forEach(function(el) {
+            el.classList.add('marked');
+          });
+      }
+    }
+  });
+
+  // Remove 'marked' class from wilds - they stay but don't cascade
+  document.querySelectorAll('.symbol.marked[data-wild]').forEach(function(wild) {
+    wild.classList.remove('marked');
+  });
+
+  if (totalWinAmount > 0) {
+    currentWinAmount += totalWinAmount;
+    balance += totalWinAmount;
+    updateDisplay();
+    showMessage('Won ' + totalWinAmount.toFixed(2) + ' Coins!', '#10b981');
+
+    fetch('/games/slots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ winAmount: totalWinAmount })
+    }).then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success) {
+          balance = data.credits;
+          updateDisplay();
+        }
+      });
+
+    if (socket) {
+      socket.emit('game:result', {
+        username: username,
+        gameType: 'megaways',
+        result: 'win',
+        amount: totalWinAmount
+      });
+    }
+  }
+
+  return win;
+}
+
+function grantFreeSpinsIfScatter() {
+  const reelsVis = Array.from({ length: 3 }, function(_, i) {
+    const reelContent = document.getElementById('reel-content-' + i);
+    const rows = currentReelConfig[i];
+    return Array.from(reelContent.children)
+      .slice(0, rows)
+      .filter(function(el) { return el.dataset.scatter === '1'; });
+  });
+
+  if (!(reelsVis[0].length && reelsVis[1].length && reelsVis[2].length)) return;
+
+  const totalScat = reelsVis.flat().length;
+  freeSpins += totalScat * 2;
+  updateDisplay();
+  showMessage(totalScat * 2 + ' FREE SPINS!', '#a855f7');
+
+  const scatterBonus = totalScat * currentBet * 2;
+  if (scatterBonus > 0) {
+    currentWinAmount += scatterBonus;
+    balance += scatterBonus;
+    updateDisplay();
+
+    fetch('/games/slots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ winAmount: scatterBonus })
+    }).then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success) {
+          balance = data.credits;
+          updateDisplay();
+        }
+      });
+  }
+}
+
+function cascade() {
+  if (!highlightMatchingSymbols()) {
+    grantFreeSpinsIfScatter();
+
+    if (freeSpins > 0) {
+      setTimeout(function() { spin(); }, 1000);
+    } else if (autoCount > 0) {
+      autoCount--;
+      document.getElementById('autoBtn').textContent = 'Auto ' + autoCount;
+      setTimeout(function() { spin(); }, 1000);
+    }
+    return;
+  }
+  
+  setTimeout(function() { dropMarkedSymbols(cascade); }, 600);
+}
+
+function dropMarkedSymbols(done) {
+  document.querySelector('.game-area').classList.add('shake');
+  setTimeout(function() { 
+    document.querySelector('.game-area').classList.remove('shake'); 
+  }, 300);
+
+  let reelsLeft = 6;
+
+  for (let r = 0; r < 6; r++) {
+    const reel = document.getElementById('reel-content-' + r);
+    const wins = Array.from(reel.querySelectorAll('.symbol.marked:not([data-wild])'));
+    const rows = currentReelConfig[r];
+    const symbolHeight = 600 / rows;
+
+    wins.forEach(function(el) {
+      el.classList.add('vanish');
+    });
+
+    setTimeout(function() {
+      wins.forEach(function(el) { el.remove(); });
+      
+      // Check if ANY reel on the board has a wild
+      let boardHasWild = false;
+      for (let i = 0; i < 6; i++) {
+        const checkReel = document.getElementById('reel-content-' + i);
+        const checkSymbols = Array.from(checkReel.children).slice(0, currentReelConfig[i]);
+        if (checkSymbols.some(function(el) { return el.dataset.wild === '1'; })) {
+          boardHasWild = true;
+          break;
+        }
+      }
+      
+      // Drop new symbols
+      for (let i = 0; i < wins.length; i++) {
+        let s = createSymbol();
+        
+        // Don't allow wild if board already has a wild
+        if (boardHasWild && s.name === 'wild') {
+          while (s.name === 'wild') {
+            s = createSymbol();
+          }
+        }
+        
+        s.style.height = symbolHeight + 'px';
+        reel.prepend(s);
+      }
+
+      keepWildsVisible(reel, rows);
+
+      if (--reelsLeft === 0) {
+        setTimeout(function() { done(); }, 400);
+      }
+    }, 300);
+  }
+}
+
+function keepWildsVisible(reel, rows) {
+  Array.from(reel.querySelectorAll('.symbol[data-wild]')).forEach(function(wild) {
+    const idx = Array.from(reel.children).indexOf(wild);
+    if (idx >= rows) {
+      reel.insertBefore(wild, reel.children[rows]);
+    }
+  });
+}
+
+function showMessage(text, color) {
+  const banner = document.getElementById('fsBanner');
+  banner.textContent = text;
+  banner.style.background = color || '#60a5fa';
+  banner.classList.remove('hidden');
+  banner.classList.add('show');
+  
+  setTimeout(function() {
+    banner.classList.remove('show');
+    setTimeout(function() { banner.classList.add('hidden'); }, 600);
+  }, 2000);
+}
+
+document.getElementById('spinBtn').addEventListener('click', spin);
+document.addEventListener('keydown', function(e) {
+  if (e.code === 'Space' && !isSpinning) {
+    e.preventDefault();
+    spin();
+  }
+});
+
+document.getElementById('turboBtn').onclick = function() {
+  turbo = !turbo;
+  document.getElementById('turboBtn').textContent = 'Turbo: ' + (turbo ? 'On' : 'Off');
+};
+
+document.getElementById('autoBtn').onclick = function() {
+  if (isSpinning) return;
+  autoCount = 10;
+  document.getElementById('autoBtn').textContent = 'Auto 10';
+  spin();
+};
+
+document.getElementById('betUp').onclick = function() {
+  if (currentBetIndex < BET_LEVELS.length - 1 && !isSpinning) {
+    currentBetIndex++;
+    currentBet = BET_LEVELS[currentBetIndex];
+    updateDisplay();
+  }
+};
+
+document.getElementById('betDown').onclick = function() {
+  if (currentBetIndex > 0 && !isSpinning) {
+    currentBetIndex--;
+    currentBet = BET_LEVELS[currentBetIndex];
+    updateDisplay();
+  }
+};
+
+document.getElementById('maxBet').onclick = function() {
+  if (!isSpinning) {
+    currentBetIndex = BET_LEVELS.length - 1;
+    currentBet = BET_LEVELS[currentBetIndex];
+    updateDisplay();
+  }
+};
+
+initGame();
+</script>
+
+<%- include('../partials/footer') %>
