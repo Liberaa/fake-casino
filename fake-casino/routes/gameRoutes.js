@@ -12,5 +12,7 @@ const requireAuth = (req, res, next) => {
 router.post('/slots', requireAuth, gameController.playSlots)
 router.post('/roulette', requireAuth, gameController.playRoulette)
 router.post('/blackjack', requireAuth, gameController.playBlackjack)
+router.post('/dice', requireAuth, gameController.playDice)
+
 
 module.exports = router

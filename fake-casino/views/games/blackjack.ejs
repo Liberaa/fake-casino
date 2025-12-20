@@ -1,62 +1,488 @@
 <%- include('../partials/header') %>
 <%- include('../partials/navbar', { user }) %>
 
-<div class="game-container">
-  <h1>🃏 Blackjack</h1>
-  <div class="game-info">
-    <div class="balance">Balance: <span id="credits"><%= user.credits.toFixed(2) %></span> Brap Coins</div>
+<style>
+.blackjack-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.blackjack-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.blackjack-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.balance-display {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 1rem 2rem;
+  border-radius: 15px;
+  display: inline-block;
+  font-size: 1.3rem;
+  font-weight: bold;
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+}
+
+.balance-display span {
+  color: #fbbf24;
+  font-size: 1.5rem;
+}
+
+.blackjack-table {
+  background: linear-gradient(135deg, #1e3a1e 0%, #0f5132 100%);
+  border-radius: 20px;
+  padding: 3rem 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  min-height: 500px;
+  position: relative;
+}
+
+.deck-position {
+  position: absolute;
+  left: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100px;
+  height: 140px;
+}
+
+.deck-stack {
+  position: relative;
+  width: 100px;
+  height: 140px;
+}
+
+.deck-card {
+  position: absolute;
+  width: 100px;
+  height: 140px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.deck-card:nth-child(1) {
+  transform: translateY(0px);
+  z-index: 5;
+}
+
+.deck-card:nth-child(2) {
+  transform: translateY(-2px);
+  z-index: 4;
+  opacity: 0.9;
+}
+
+.deck-card:nth-child(3) {
+  transform: translateY(-4px);
+  z-index: 3;
+  opacity: 0.8;
+}
+
+.deck-card:nth-child(4) {
+  transform: translateY(-6px);
+  z-index: 2;
+  opacity: 0.7;
+}
+
+.deck-card:nth-child(5) {
+  transform: translateY(-8px);
+  z-index: 1;
+  opacity: 0.6;
+}
+
+.dealer-section, .player-section {
+  margin-bottom: 3rem;
+}
+
+.dealer-section h3, .player-section h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.hand {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 140px;
+  flex-wrap: wrap;
+}
+
+.card {
+  width: 100px;
+  height: 140px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+  transition: transform 0.3s ease;
+}
+
+.card.new-card {
+  animation: cardFromDeck 0.6s ease-out;
+}
+
+@keyframes cardFromDeck {
+  from {
+    opacity: 0;
+    transform: translate(-800px, 0) scale(0.5) rotate(-15deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+}
+
+.card:hover {
+  transform: translateY(-10px) scale(1.05);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+}
+
+.card-back {
+  width: 100px;
+  height: 140px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+}
+
+.card-back.flip {
+  animation: cardFlip 0.6s ease-out;
+}
+
+@keyframes cardFlip {
+  0% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(90deg);
+  }
+  100% {
+    transform: rotateY(0deg);
+  }
+}
+
+.score {
+  text-align: center;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #fbbf24;
+  margin-top: 1rem;
+}
+
+.game-controls {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.bet-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bet-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.bet-input-group label {
+  font-weight: bold;
+  color: #fbbf24;
+}
+
+#betAmount {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: bold;
+  width: 120px;
+  text-align: center;
+}
+
+#betAmount:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 0.8rem 2rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 20px rgba(102, 126, 234, 0.6);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.game-result {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 2rem 0;
+  padding: 1rem;
+  border-radius: 10px;
+  display: none;
+}
+
+.game-result.win {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+  border: 2px solid #22c55e;
+}
+
+.game-result.loss {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 2px solid #ef4444;
+}
+
+.game-result.push {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  border: 2px solid #fbbf24;
+}
+
+.game-result.show {
+  display: block;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.game-rules {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  border-radius: 10px;
+  margin-bottom: 2rem;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.game-rules h3 {
+  margin-top: 0;
+  color: #fbbf24;
+}
+
+.btn-back {
+  display: inline-block;
+  padding: 0.8rem 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.btn-back:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+</style>
+
+<div class="blackjack-container">
+  <div class="blackjack-header">
+    <h1>🃏 Blackjack</h1>
+    <div class="balance-display">
+      💰 Balance: <span id="credits"><%= user.credits.toFixed(2) %></span> Coins
+    </div>
   </div>
 
   <div class="blackjack-table">
+    <!-- Deck of cards on the left -->
+    <div class="deck-position">
+      <div class="deck-stack">
+        <div class="deck-card">🃏</div>
+        <div class="deck-card">🃏</div>
+        <div class="deck-card">🃏</div>
+        <div class="deck-card">🃏</div>
+        <div class="deck-card">🃏</div>
+      </div>
+    </div>
+    
     <div class="dealer-section">
-      <h3>Dealer</h3>
+      <h3>🎩 Dealer</h3>
       <div class="hand" id="dealerHand"></div>
       <div class="score" id="dealerScore"></div>
     </div>
 
     <div class="player-section">
-      <h3>You</h3>
+      <h3>👤 You</h3>
       <div class="hand" id="playerHand"></div>
       <div class="score" id="playerScore"></div>
-    </div>
-  </div>
-
-  <div class="game-controls">
-    <div id="betControls">
-      <label for="betAmount">Bet Amount:</label>
-      <input type="number" id="betAmount" value="10" min="1" max="<%= user.credits %>">
-      <button onclick="startGame()" class="btn-primary">Deal Cards</button>
-    </div>
-
-    <div id="gameControls" style="display: none;">
-      <button onclick="hit()" id="hitBtn" class="btn-primary">Hit</button>
-      <button onclick="stand()" id="standBtn" class="btn-primary">Stand</button>
-      <button onclick="resetGame()" class="btn-secondary">New Game</button>
+      
+      <div id="newGameControl" style="display: none; text-align: center; margin-top: 2rem;">
+        <button onclick="resetGame()" class="btn-primary" style="padding: 1rem 3rem; font-size: 1.2rem;">
+          🎲 New Game
+        </button>
+      </div>
     </div>
   </div>
 
   <div class="game-result" id="result"></div>
 
-  <div class="game-rules">
-    <h3>Rules:</h3>
-    <p>Get closer to 21 than the dealer without going over</p>
-    <p>Face cards = 10, Ace = 1 or 11</p>
+  <div class="game-controls">
+    <div id="betControls" class="bet-controls">
+      <div class="bet-input-group">
+        <label for="betAmount">Bet Amount:</label>
+        <input type="number" id="betAmount" value="10" min="1" max="<%= user.credits %>" step="0.01">
+      </div>
+      <button onclick="startGame()" class="btn-primary">Deal Cards</button>
+    </div>
+
+    <div id="gameControls" class="action-buttons" style="display: none;">
+      <button onclick="hit()" id="hitBtn" class="btn-primary">Hit</button>
+      <button onclick="stand()" id="standBtn" class="btn-primary">Stand</button>
+    </div>
   </div>
 
-  <a href="/lobby" class="btn-back">← Back to Lobby</a>
+  <div class="game-rules">
+    <h3>Rules:</h3>
+    <p>🎯 Get closer to 21 than the dealer without going over</p>
+    <p>🃏 Face cards (J, Q, K) = 10 points</p>
+    <p>🅰️ Ace = 1 or 11 points</p>
+    <p>💰 Blackjack pays 2:1</p>
+  </div>
+
+  <div style="text-align: center;">
+    <a href="/lobby" class="btn-back">← Back to Lobby</a>
+  </div>
 </div>
 
 <script>
 const socket = io()
 const username = '<%= user.username %>'
 let currentBet = 0
-let playerHand = []
-let dealerHand = []
+let currentCredits = Number('<%= user.credits %>')
+let gameState = {
+  playerCards: [],
+  dealerCards: [],
+  dealerHoleCardRevealed: false
+}
+
+function getCardImage(card) {
+  if (!card || typeof card !== 'string') return '/img/red_joker.svg'
+  
+  const suitMap = { '♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs' }
+  const valueMap = {
+    'A': 'ace', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6',
+    '7': '7', '8': '8', '9': '9', '10': '10', 'J': 'jack', 'Q': 'queen', 'K': 'king'
+  }
+  
+  const suit = card.slice(-1)
+  const value = card.slice(0, -1)
+  
+  if (!suitMap[suit] || !valueMap[value]) return '/img/red_joker.svg'
+  
+  return `/img/${valueMap[value]}_of_${suitMap[suit]}.svg`
+}
+
+function renderCard(card, isHoleCard = false) {
+  if (isHoleCard) {
+    const div = document.createElement('div')
+    div.className = 'card-back new-card'
+    div.textContent = '🃏'
+    div.dataset.card = card
+    // Remove animation class after it completes
+    setTimeout(() => div.classList.remove('new-card'), 600)
+    return div
+  }
+  
+  const img = document.createElement('img')
+  img.src = getCardImage(card)
+  img.className = 'card new-card'
+  img.alt = card
+  // Remove animation class after it completes
+  setTimeout(() => img.classList.remove('new-card'), 600)
+  return img
+}
+
+function updateDisplay(playerScore, dealerScore) {
+  document.getElementById('playerScore').textContent = `Score: ${playerScore}`
+  if (dealerScore !== null) {
+    document.getElementById('dealerScore').textContent = `Score: ${dealerScore}`
+  } else {
+    document.getElementById('dealerScore').textContent = ''
+  }
+}
 
 async function startGame() {
-  currentBet = parseInt(document.getElementById('betAmount').value)
-  playerHand = []
-  dealerHand = []
+  const betAmount = Number(document.getElementById('betAmount').value)
+  
+  if (betAmount <= 0 || betAmount > currentCredits) {
+    alert(`Invalid bet! You have ${currentCredits.toFixed(2)} coins`)
+    return
+  }
+  
+  currentBet = betAmount
+  currentCredits -= betAmount
+  document.getElementById('credits').textContent = currentCredits.toFixed(2)
+  document.getElementById('betAmount').max = currentCredits
   
   const res = await fetch('/games/blackjack', {
     method: 'POST',
@@ -67,16 +493,39 @@ async function startGame() {
   const data = await res.json()
   
   if (data.success) {
-    playerHand = data.playerHand
-    dealerHand = data.dealerHand
-    updateUI(data)
+    gameState.playerCards = data.playerHand
+    gameState.dealerCards = data.dealerHand
+    gameState.dealerHoleCardRevealed = false
+    
+    // Clear hands
+    document.getElementById('playerHand').innerHTML = ''
+    document.getElementById('dealerHand').innerHTML = ''
+    
+    // Show player cards
+    gameState.playerCards.forEach(card => {
+      document.getElementById('playerHand').appendChild(renderCard(card))
+    })
+    
+    // Show dealer cards (first one visible, second hidden)
+    document.getElementById('dealerHand').appendChild(renderCard(gameState.dealerCards[0]))
+    document.getElementById('dealerHand').appendChild(renderCard(gameState.dealerCards[1], true))
+    
+    updateDisplay(data.playerScore, null)
     
     document.getElementById('betControls').style.display = 'none'
-    document.getElementById('gameControls').style.display = 'block'
+    document.getElementById('gameControls').style.display = 'flex'
+    document.getElementById('result').classList.remove('show')
+    
+    currentCredits = data.credits
+    document.getElementById('credits').textContent = currentCredits.toFixed(2)
     
     if (data.gameOver) {
       endGame(data)
     }
+  } else {
+    currentCredits += betAmount
+    document.getElementById('credits').textContent = currentCredits.toFixed(2)
+    alert(data.error || 'Failed to start game')
   }
 }
 
@@ -87,17 +536,23 @@ async function hit() {
     body: JSON.stringify({ 
       betAmount: currentBet, 
       action: 'hit',
-      playerHand,
-      dealerHand
+      playerHand: gameState.playerCards,
+      dealerHand: gameState.dealerCards
     })
   })
   
   const data = await res.json()
   
   if (data.success) {
-    playerHand = data.playerHand
-    dealerHand = data.dealerHand
-    updateUI(data)
+    // Add only the new card
+    const newCard = data.playerHand[data.playerHand.length - 1]
+    gameState.playerCards.push(newCard)
+    document.getElementById('playerHand').appendChild(renderCard(newCard))
+    
+    updateDisplay(data.playerScore, null)
+    
+    currentCredits = data.credits
+    document.getElementById('credits').textContent = currentCredits.toFixed(2)
     
     if (data.gameOver) {
       endGame(data)
@@ -112,65 +567,115 @@ async function stand() {
     body: JSON.stringify({ 
       betAmount: currentBet, 
       action: 'stand',
-      playerHand,
-      dealerHand
+      playerHand: gameState.playerCards,
+      dealerHand: gameState.dealerCards
     })
   })
   
   const data = await res.json()
   
   if (data.success) {
-    playerHand = data.playerHand
-    dealerHand = data.dealerHand
-    updateUI(data)
-    endGame(data)
+    // Reveal hole card (flip animation only, no flying)
+    const dealerHand = document.getElementById('dealerHand')
+    const holeCardBack = dealerHand.querySelector('.card-back')
+    if (holeCardBack) {
+      const holeCard = holeCardBack.dataset.card
+      
+      const revealedCard = document.createElement('img')
+      revealedCard.src = getCardImage(holeCard)
+      revealedCard.className = 'card' // No 'new-card' class
+      revealedCard.alt = holeCard
+      revealedCard.style.animation = 'cardFlip 0.6s ease-out'
+      
+      setTimeout(() => {
+        holeCardBack.replaceWith(revealedCard)
+      }, 100)
+    }
+    
+    // Add new dealer cards if any (these DO fly from deck)
+    setTimeout(() => {
+      const newCards = data.dealerHand.slice(2)
+      newCards.forEach((card, index) => {
+        setTimeout(() => {
+          dealerHand.appendChild(renderCard(card))
+        }, index * 500)
+      })
+      
+      setTimeout(() => {
+        updateDisplay(data.playerScore, data.dealerScore)
+        endGame(data)
+      }, newCards.length * 500 + 500)
+    }, 600)
+    
+    currentCredits = data.credits
+    document.getElementById('credits').textContent = currentCredits.toFixed(2)
   }
-}
-
-function updateUI(data) {
-  document.getElementById('playerHand').textContent = data.playerHand.join(' ')
-  document.getElementById('playerScore').textContent = `Score: ${data.playerScore}`
-  
-  document.getElementById('dealerHand').textContent = data.dealerHand.join(' ')
-  document.getElementById('dealerScore').textContent = data.gameOver ? `Score: ${data.dealerScore}` : ''
-  
-  document.getElementById('credits').textContent = data.credits
 }
 
 function endGame(data) {
   document.getElementById('hitBtn').disabled = true
   document.getElementById('standBtn').disabled = true
   
-  const result = document.getElementById('result')
-  if (data.result === 'win') {
-    result.textContent = `🎉 You won ${data.winAmount} Brap Coins!`
-    result.className = 'game-result win'
-  } else if (data.result === 'push') {
-    result.textContent = `🤝 Push! Your bet returned`
-    result.className = 'game-result'
-  } else {
-    result.textContent = `😢 You lost ${currentBet} Brap Coins`
-    result.className = 'game-result loss'
+  // Always reveal dealer's hole card if it's still hidden
+  const dealerHand = document.getElementById('dealerHand')
+  const holeCardBack = dealerHand.querySelector('.card-back')
+  if (holeCardBack) {
+    const holeCard = holeCardBack.dataset.card
+    
+    // Just replace the card back with the card image (no new-card animation)
+    const revealedCard = document.createElement('img')
+    revealedCard.src = getCardImage(holeCard)
+    revealedCard.className = 'card' // No 'new-card' class
+    revealedCard.alt = holeCard
+    revealedCard.style.animation = 'cardFlip 0.6s ease-out'
+    
+    setTimeout(() => {
+      holeCardBack.replaceWith(revealedCard)
+    }, 100)
   }
   
-  socket.emit('game:result', {
-    username,
-    gameType: 'blackjack',
-    result: data.result,
-    amount: data.result === 'win' ? data.winAmount : currentBet
-  })
+  // Show dealer's final score
+  setTimeout(() => {
+    updateDisplay(data.playerScore, data.dealerScore)
+  }, 600)
+  
+  setTimeout(() => {
+    document.getElementById('gameControls').style.display = 'none'
+    document.getElementById('newGameControl').style.display = 'block'
+    
+    const result = document.getElementById('result')
+    if (data.result === 'win') {
+      result.textContent = `🎉 You won ${data.winAmount.toFixed(2)} Coins!`
+      result.className = 'game-result win show'
+    } else if (data.result === 'push') {
+      result.textContent = `🤝 Push! Your bet of ${currentBet.toFixed(2)} returned`
+      result.className = 'game-result push show'
+    } else {
+      result.textContent = `😢 You lost ${currentBet.toFixed(2)} Coins`
+      result.className = 'game-result loss show'
+    }
+    
+    socket.emit('game:result', {
+      username,
+      gameType: 'blackjack',
+      result: data.result,
+      amount: data.result === 'win' ? data.winAmount : currentBet
+    })
+  }, 1000)
 }
 
 function resetGame() {
-  document.getElementById('betControls').style.display = 'block'
+  document.getElementById('betControls').style.display = 'flex'
   document.getElementById('gameControls').style.display = 'none'
-  document.getElementById('result').textContent = ''
-  document.getElementById('playerHand').textContent = ''
-  document.getElementById('dealerHand').textContent = ''
+  document.getElementById('newGameControl').style.display = 'none'
+  document.getElementById('result').classList.remove('show')
+  document.getElementById('playerHand').innerHTML = ''
+  document.getElementById('dealerHand').innerHTML = ''
   document.getElementById('playerScore').textContent = ''
   document.getElementById('dealerScore').textContent = ''
   document.getElementById('hitBtn').disabled = false
   document.getElementById('standBtn').disabled = false
+  gameState = { playerCards: [], dealerCards: [], dealerHoleCardRevealed: false }
 }
 </script>
 

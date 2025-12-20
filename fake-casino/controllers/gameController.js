@@ -14,12 +14,18 @@ exports.playSlots = async (req, res) => {
     if (winAmount !== undefined && winAmount > 0) {
       user.credits += winAmount;
       user.totalWins++;
+      user.totalWagered = (user.totalWagered || 0) + (betAmount || 0);
+      
+      if (winAmount > (user.biggestWin || 0)) {
+        user.biggestWin = winAmount;
+      }
+      
       await user.save();
 
       const game = new Game({
         user: user._id,
         gameType: 'slots',
-        betAmount: 0,
+        betAmount: betAmount || 0,
         result: 'win',
         winAmount: winAmount,
         details: { megaways: true }
@@ -39,6 +45,8 @@ exports.playSlots = async (req, res) => {
     }
 
     user.credits -= betAmount;
+    user.totalWagered = (user.totalWagered || 0) + betAmount;
+    user.totalLosses++;
     await user.save();
 
     res.json({ 
@@ -47,6 +55,7 @@ exports.playSlots = async (req, res) => {
       betAmount: betAmount
     });
   } catch (error) {
+    console.error('Slots error:', error);
     res.status(500).json({ error: 'Game failed' });
   }
 };
@@ -82,8 +91,16 @@ exports.playRoulette = async (req, res) => {
     }
 
     user.credits = user.credits - betAmount + winAmount
-    if (result === 'win') user.totalWins++
-    else user.totalLosses++
+    user.totalWagered = (user.totalWagered || 0) + betAmount
+    
+    if (result === 'win') {
+      user.totalWins++
+      if (winAmount > (user.biggestWin || 0)) {
+        user.biggestWin = winAmount
+      }
+    } else {
+      user.totalLosses++
+    }
 
     await user.save()
 
@@ -99,6 +116,7 @@ exports.playRoulette = async (req, res) => {
 
     res.json({ success: true, winningNumber, winAmount, credits: user.credits, result })
   } catch (error) {
+    console.error('Roulette error:', error)
     res.status(500).json({ error: 'Game failed' })
   }
 }
@@ -112,20 +130,30 @@ exports.playBlackjack = async (req, res) => {
       return res.status(400).json({ error: 'Insufficient credits' })
     }
 
-    const deck = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
-    const drawCard = () => deck[Math.floor(Math.random() * deck.length)]
+    // Full deck with suits for card images
+    const suits = ['♠', '♥', '♦', '♣']
+    const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
+    const fullDeck = []
+    suits.forEach(suit => {
+      values.forEach(value => {
+        fullDeck.push(value + suit)
+      })
+    })
+    
+    const drawCard = () => fullDeck[Math.floor(Math.random() * fullDeck.length)]
     
     const calculateScore = (hand) => {
       let score = 0
       let aces = 0
       for (let card of hand) {
-        if (card === 'A') {
+        const value = card.slice(0, -1) // Remove suit symbol
+        if (value === 'A') {
           aces++
           score += 11
-        } else if (['J', 'Q', 'K'].includes(card)) {
+        } else if (['J', 'Q', 'K'].includes(value)) {
           score += 10
         } else {
-          score += parseInt(card)
+          score += parseInt(value)
         }
       }
       while (score > 21 && aces > 0) {
@@ -157,23 +185,42 @@ exports.playBlackjack = async (req, res) => {
     let gameOver = false
 
     if (playerScore > 21) {
+      // Player busts
       result = 'loss'
       gameOver = true
     } else if (action === 'stand' || playerScore === 21) {
       gameOver = true
-      if (dealerScore > 21 || playerScore > dealerScore) {
+      
+      if (dealerScore > 21) {
+        // Dealer busts, player wins
+        winAmount = betAmount * 2
+        result = 'win'
+      } else if (playerScore > dealerScore) {
+        // Player has higher score
         winAmount = betAmount * 2
         result = 'win'
       } else if (playerScore === dealerScore) {
+        // Tie
         winAmount = betAmount
         result = 'push'
+      } else {
+        // Dealer wins
+        result = 'loss'
       }
     }
 
     if (gameOver) {
       user.credits = user.credits - betAmount + winAmount
-      if (result === 'win') user.totalWins++
-      else if (result === 'loss') user.totalLosses++
+      user.totalWagered = (user.totalWagered || 0) + betAmount
+      
+      if (result === 'win') {
+        user.totalWins++
+        if (winAmount > (user.biggestWin || 0)) {
+          user.biggestWin = winAmount
+        }
+      } else if (result === 'loss') {
+        user.totalLosses++
+      }
       
       await user.save()
 
@@ -200,6 +247,102 @@ exports.playBlackjack = async (req, res) => {
       gameOver
     })
   } catch (error) {
+    console.error('Blackjack error:', error)
     res.status(500).json({ error: 'Game failed' })
+  }
+}
+
+exports.playDice = async (req, res) => {
+  try {
+    const { betAmount, target, mode } = req.body
+    const user = await User.findById(req.session.userId)
+
+    if (
+      !user ||
+      typeof betAmount !== 'number' ||
+      typeof target !== 'number' ||
+      !['under', 'over'].includes(mode)
+    ) {
+      return res.status(400).json({ error: 'Invalid bet data' })
+    }
+
+    if (betAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid bet amount' })
+    }
+
+    if (user.credits < betAmount) {
+      return res.status(400).json({ error: 'Insufficient credits' })
+    }
+
+    if (target < 1 || target > 99) {
+      return res.status(400).json({ error: 'Invalid target' })
+    }
+
+    const roll = Math.floor(Math.random() * 100) + 1
+
+    let win = false
+    if (mode === 'under') {
+      win = roll < target
+    } else {
+      win = roll > target
+    }
+
+    let multiplier
+    if (mode === 'under') {
+      multiplier = 99 / target
+    } else {
+      multiplier = 99 / (100 - target)
+    }
+
+    const MAX_MULTIPLIER = 99
+    const MAX_WIN = 1_000_000
+
+    multiplier = Math.min(multiplier, MAX_MULTIPLIER)
+
+    let winAmount = win ? +(betAmount * multiplier).toFixed(2) : 0
+    winAmount = Math.min(winAmount, MAX_WIN)
+
+    user.credits = user.credits - betAmount + winAmount
+    user.totalWagered = (user.totalWagered || 0) + betAmount
+
+    if (win) {
+      user.totalWins++
+      if (winAmount > (user.biggestWin || 0)) {
+        user.biggestWin = winAmount
+      }
+    } else {
+      user.totalLosses++
+    }
+
+    await user.save()
+
+    await new Game({
+      user: user._id,
+      gameType: 'dice',
+      betAmount,
+      result: win ? 'win' : 'loss',
+      winAmount,
+      details: {
+        roll,
+        target,
+        mode,
+        multiplier: +multiplier.toFixed(4)
+      }
+    }).save()
+
+    res.json({
+      success: true,
+      roll,
+      target,
+      mode,
+      win,
+      multiplier: +multiplier.toFixed(4),
+      winAmount,
+      credits: user.credits
+    })
+
+  } catch (err) {
+    console.error('Dice error:', err)
+    res.status(500).json({ error: 'Dice game failed' })
   }
 }

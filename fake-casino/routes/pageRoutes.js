@@ -46,4 +46,10 @@ router.get('/games/blackjack', requireAuth, async (req, res) => {
   res.render('games/blackjack', { user })
 })
 
+router.get('/games/dice', requireAuth, async (req, res) => {
+  const user = await User.findById(req.session.userId)
+  res.render('games/dice', { user })
+})
+
+
 module.exports = router
