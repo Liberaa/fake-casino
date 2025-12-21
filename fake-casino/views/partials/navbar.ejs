@@ -248,8 +248,10 @@ function updateNavbarXP() {
 updateNavbarXP()
 
 // Socket connection
+// Create socket globally
+var socket = null
 if (typeof io !== 'undefined') {
-  const socket = io()
+  socket = io()
   
   // Listen for XP updates
   socket.on('xp:updated', (data) => {
