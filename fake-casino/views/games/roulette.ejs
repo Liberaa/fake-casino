@@ -539,8 +539,8 @@ function updateStats() {
   document.getElementById('starCount').textContent = starCount
 }
 
-const socket = io()
-const username = '<%= user.username %>'
+// Socket and userId already created by navbar
+const rouletteUsername = '<%= user.username %>'
 
 let timer = 10.00
 let timerInterval = null

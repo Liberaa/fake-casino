@@ -382,10 +382,7 @@
 </style>
 
 <script>
-let socket = null;
-if (typeof io !== 'undefined') {
-  socket = io();
-}
+// Socket already created by navbar
 
 const username = '<%= user.username %>';
 let balance = Number('<%= user.credits %>') || 0;
