@@ -2,7 +2,7 @@
 <%- include('partials/navbar', { user }) %>
 
 <style>
-/* ... keep all your existing CSS ... */
+/* Keep all your existing CSS */
 .chat-container {
   max-width: 900px;
   margin: 2rem auto;
@@ -114,6 +114,7 @@
   background: rgba(0, 0, 0, 0.2);
   display: flex;
   gap: 0.5rem;
+  position: relative;
 }
 
 #chatInput {
@@ -246,8 +247,16 @@
 </div>
 
 <script>
-// Use userId from navbar (already declared there)
-// Don't redeclare it!
+// Create socket if not already created by navbar
+if (typeof socket === 'undefined') {
+  var socket = io()
+}
+
+// Create userId if not defined
+if (typeof userId === 'undefined') {
+  var userId = '<%= user._id %>'
+}
+
 const chatUsername = '<%= user.username %>'
 
 // Generate consistent color for each user
@@ -351,7 +360,6 @@ document.getElementById('chatForm').addEventListener('submit', (e) => {
   const message = input.value.trim()
   
   if (message) {
-    // Use userId from navbar
     socket.emit('chat:message', { userId: userId, username: chatUsername, message })
     input.value = ''
     socket.emit('chat:stopTyping', { username: chatUsername })
@@ -364,7 +372,6 @@ function appendMessage(user, message, timestamp) {
   const messageDiv = document.createElement('div')
   messageDiv.className = 'chat-message'
   
-  // Add own-message class if it's the current user
   if (user === chatUsername) {
     messageDiv.classList.add('own-message')
   }
