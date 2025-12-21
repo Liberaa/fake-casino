@@ -834,12 +834,12 @@ async function executeBets() {
           startTimer()
         }, 3000)
         
-        socket.emit('game:result', {
-          username,
-          gameType: 'roulette',
-          result: wonAnyBet ? 'win' : 'loss',
-          amount: wonAnyBet ? totalWinnings : activeBets.reduce((sum, bet) => sum + bet.amount, 0)
-        })
+   socket.emit('game:result', {
+  username: rouletteUsername,  // ✅ Fixed
+  gameType: 'roulette',
+  result: wonAnyBet ? 'win' : 'loss',
+  amount: wonAnyBet ? totalWinnings : activeBets.reduce((sum, bet) => sum + bet.amount, 0)
+})
       }, 3200)
     } else {
       document.getElementById('rollingText').style.display = 'none'
@@ -900,12 +900,12 @@ function selectBet(type) {
   }
 
   // Send bet to server via socket
-  socket.emit('roulette:placeBet', {
-    userId,
-    username,
-    type,
-    amount: betAmount
-  })
+socket.emit('roulette:placeBet', {
+  userId,
+  username: rouletteUsername,  // ✅ Fixed
+  type,
+  amount: betAmount
+})
 
     if (typeof emitBetPlaced === 'function') {
     emitBetPlaced(betAmount)
