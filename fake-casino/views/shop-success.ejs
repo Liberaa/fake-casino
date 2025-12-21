@@ -1,0 +1,149 @@
+<%- include('partials/header') %>
+<%- include('partials/navbar', { user }) %>
+
+<style>
+.success-container {
+  max-width: 600px;
+  margin: 4rem auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.success-icon {
+  font-size: 6rem;
+  animation: bounce 1s ease infinite;
+  margin-bottom: 2rem;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+.success-title {
+  font-size: 2.5rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 1rem;
+}
+
+.success-message {
+  font-size: 1.2rem;
+  color: #888;
+  margin-bottom: 2rem;
+}
+
+.coins-added {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.2) 100%);
+  border: 2px solid #fbbf24;
+  border-radius: 20px;
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.coins-number {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #fbbf24;
+  margin: 1rem 0;
+}
+
+.new-balance {
+  font-size: 1.5rem;
+  color: #10b981;
+  margin-top: 1rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.btn {
+  padding: 1rem 2rem;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  background: #fbbf24;
+  position: absolute;
+  animation: confetti-fall 3s linear infinite;
+}
+
+@keyframes confetti-fall {
+  to {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+</style>
+
+<div class="success-container">
+  <div class="success-icon">🎉</div>
+  <h1 class="success-title">Purchase Successful!</h1>
+  <p class="success-message">Your Brap Coins have been added to your account</p>
+
+  <div class="coins-added">
+    <div style="color: #888; font-size: 1rem;">Coins Added</div>
+    <div class="coins-number">+<%= coins.toLocaleString() %></div>
+    <div style="color: #fbbf24; font-size: 1.2rem;">💰 Brap Coins</div>
+    <div class="new-balance">
+      New Balance: <%= user.credits.toFixed(2) %> Coins
+    </div>
+  </div>
+
+  <div class="action-buttons">
+    <a href="/lobby" class="btn btn-primary">🎰 Start Playing</a>
+    <a href="/shop" class="btn btn-secondary">🛒 Buy More</a>
+  </div>
+</div>
+
+<script>
+// Create confetti effect
+for (let i = 0; i < 50; i++) {
+  setTimeout(() => {
+    const confetti = document.createElement('div')
+    confetti.className = 'confetti'
+    confetti.style.left = Math.random() * 100 + '%'
+    confetti.style.background = ['#fbbf24', '#667eea', '#10b981', '#ef4444'][Math.floor(Math.random() * 4)]
+    confetti.style.animationDelay = Math.random() * 3 + 's'
+    document.body.appendChild(confetti)
+    
+    setTimeout(() => confetti.remove(), 3000)
+  }, i * 30)
+}
+</script>
+
+<%- include('partials/footer') %>

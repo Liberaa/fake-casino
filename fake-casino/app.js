@@ -18,11 +18,13 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.use(sessionMiddleware)
 
 // Routes
+const shopRoutes = require('./routes/shopRoutes')
 const authRoutes = require('./routes/authRoutes')
 const gameRoutes = require('./routes/gameRoutes')
 const pageRoutes = require('./routes/pageRoutes')
 const apiRoutes = require('./routes/apiRoutes')
 
+app.use('/shop', shopRoutes)
 app.use('/auth', authRoutes)
 app.use('/games', gameRoutes)
 app.use('/api', apiRoutes)

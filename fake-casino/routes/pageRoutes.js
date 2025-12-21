@@ -26,6 +26,11 @@ router.get('/chat', requireAuth, async (req, res) => {
   res.render('chat', { user })
 })
 
+router.get('/shop', requireAuth, async (req, res) => {
+  const user = await User.findById(req.session.userId)
+  res.render('shop', { user })
+})
+
 router.get('/leaderboard', requireAuth, async (req, res) => {
   const user = await User.findById(req.session.userId)
   res.render('leaderboard', { user })
