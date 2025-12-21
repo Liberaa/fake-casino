@@ -7,14 +7,17 @@ const app = express()
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
 
+// Body parsers FIRST
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// Static files BEFORE session
 app.use(express.static(path.join(__dirname, 'public')))
-app.use('/img', express.static(path.join(__dirname, 'public/img')))
-app.use('/css', express.static(path.join(__dirname, 'public/css')))
-app.use('/js', express.static(path.join(__dirname, 'public/js')))
+
+// Session LAST (before routes)
 app.use(sessionMiddleware)
 
+// Routes
 const authRoutes = require('./routes/authRoutes')
 const gameRoutes = require('./routes/gameRoutes')
 const pageRoutes = require('./routes/pageRoutes')

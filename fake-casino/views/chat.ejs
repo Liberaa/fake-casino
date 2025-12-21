@@ -2,6 +2,7 @@
 <%- include('partials/navbar', { user }) %>
 
 <style>
+/* ... keep all your existing CSS ... */
 .chat-container {
   max-width: 900px;
   margin: 2rem auto;
@@ -200,7 +201,7 @@
 
 <div class="chat-container">
   <div class="chat-header">
-    <h2>Global Chat</h2>
+    <h2>💬 Global Chat</h2>
     <div class="online-indicator">
       <span class="online-dot"></span>
       <span id="onlineCount">0</span> online
@@ -245,9 +246,9 @@
 </div>
 
 <script>
-const socket = io()
-const userId = '<%= user._id %>'
-const username = '<%= user.username %>'
+// Use userId from navbar (already declared there)
+// Don't redeclare it!
+const chatUsername = '<%= user.username %>'
 
 // Generate consistent color for each user
 const userColors = {}
@@ -268,19 +269,19 @@ let isTyping = false
 document.getElementById('chatInput').addEventListener('input', () => {
   if (!isTyping) {
     isTyping = true
-    socket.emit('chat:typing', { username })
+    socket.emit('chat:typing', { username: chatUsername })
   }
   
   clearTimeout(typingTimer)
   typingTimer = setTimeout(() => {
     isTyping = false
-    socket.emit('chat:stopTyping', { username })
+    socket.emit('chat:stopTyping', { username: chatUsername })
   }, typingTimeout)
 })
 
 const typingUsers = new Set()
 socket.on('chat:userTyping', (data) => {
-  if (data.username !== username) {
+  if (data.username !== chatUsername) {
     typingUsers.add(data.username)
     updateTypingIndicator()
   }
@@ -324,7 +325,7 @@ document.addEventListener('click', (e) => {
 })
 
 socket.emit('chat:loadHistory')
-socket.emit('lobby:join', { username })
+socket.emit('lobby:join', { username: chatUsername })
 
 socket.on('chat:history', (messages) => {
   const chatMessages = document.getElementById('chatMessages')
@@ -350,9 +351,10 @@ document.getElementById('chatForm').addEventListener('submit', (e) => {
   const message = input.value.trim()
   
   if (message) {
-    socket.emit('chat:message', { userId, username, message })
+    // Use userId from navbar
+    socket.emit('chat:message', { userId: userId, username: chatUsername, message })
     input.value = ''
-    socket.emit('chat:stopTyping', { username })
+    socket.emit('chat:stopTyping', { username: chatUsername })
     isTyping = false
   }
 })
@@ -363,7 +365,7 @@ function appendMessage(user, message, timestamp) {
   messageDiv.className = 'chat-message'
   
   // Add own-message class if it's the current user
-  if (user === username) {
+  if (user === chatUsername) {
     messageDiv.classList.add('own-message')
   }
   
@@ -374,7 +376,7 @@ function appendMessage(user, message, timestamp) {
   
   messageDiv.innerHTML = `
     <div class="message-header">
-      <span class="message-username">${user}</span>
+      <span class="message-username">${escapeHtml(user)}</span>
       <span class="message-time">${time}</span>
     </div>
     <div class="message-content">${escapeHtml(message)}</div>
