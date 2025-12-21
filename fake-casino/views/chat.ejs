@@ -251,12 +251,6 @@
 if (typeof socket === 'undefined') {
   var socket = io()
 }
-
-// Create userId if not defined
-if (typeof userId === 'undefined') {
-  var userId = '<%= user._id %>'
-}
-
 const chatUsername = '<%= user.username %>'
 
 // Generate consistent color for each user
