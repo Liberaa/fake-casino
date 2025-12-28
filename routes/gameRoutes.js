@@ -15,5 +15,5 @@ router.post('/slots', requireAuth, gameController.playSlots)
 router.post('/roulette', requireAuth, gameController.playRoulette)
 router.post('/blackjack', requireAuth, gameController.playBlackjack)
 router.post('/dice', requireAuth, gameController.playDice)
-
+router.post('/craps', requireAuth, gameController.playCraps)
 module.exports = router

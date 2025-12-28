@@ -70,6 +70,15 @@ router.get('/games/blackjack', requireAuth, async (req, res, next) => {
   }
 })
 
+router.get('/games/craps', requireAuth, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.session.userId).lean()
+    res.render('games/craps', { user })
+  } catch (err) {
+    next(err)
+  }
+})
+
 router.get('/games/dice', requireAuth, async (req, res, next) => {
   try {
     const user = await User.findById(req.session.userId).lean()

@@ -1,0 +1,767 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar', { user }) %>
+
+<style>
+.craps-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+  background: #2a2d3a;
+  min-height: 100vh;
+}
+
+.craps-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.craps-header h1 {
+  font-size: 2rem;
+  color: #ffd700;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  margin-bottom: 0.5rem;
+}
+
+.balance-display {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 1.5rem;
+  border-radius: 25px;
+  display: inline-block;
+  font-size: 1.1rem;
+  color: #ffd700;
+  border: 2px solid #ffd700;
+}
+
+/* Actual Craps Table Layout */
+.craps-table-container {
+  background: #000;
+  padding: 10px;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.craps-table {
+  background: #0d5a0d;
+  border: 3px solid #ffd700;
+  border-radius: 15px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px 1fr 150px;
+  min-height: 400px;
+}
+
+/* Don't Pass Bar */
+.dont-pass-bar {
+  background: #0d5a0d;
+  border-right: 2px solid #ffd700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.dont-pass-bar:hover {
+  background: #0f6d0f;
+}
+
+.dont-pass-bar.selected {
+  background: #1a7a1a;
+  box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.dont-pass-bar span {
+  color: #fff;
+  font-weight: bold;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 1.2rem;
+  letter-spacing: 3px;
+}
+
+/* Center Playing Area */
+.center-area {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Numbers Box Area */
+.numbers-area {
+  background: #0d5a0d;
+  border-bottom: 2px solid #ffd700;
+  padding: 15px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+
+.point-box {
+  background: #0a4a0a;
+  border: 2px solid #ffd700;
+  border-radius: 8px;
+  padding: 20px 10px;
+  text-align: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.point-box:hover {
+  background: #0f6d0f;
+}
+
+.point-box.active {
+  background: #1a7a1a;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.point-box .number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.point-box .odds {
+  font-size: 0.8rem;
+  color: #ffd700;
+  margin-top: 5px;
+}
+
+.point-marker {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  color: #000;
+  padding: 5px 10px;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.8rem;
+  display: none;
+}
+
+.point-box.point .point-marker {
+  display: block;
+}
+
+/* Come Area */
+.come-area {
+  background: #0d5a0d;
+  border-bottom: 2px solid #ffd700;
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.come-area:hover {
+  background: #0f6d0f;
+}
+
+.come-area.selected {
+  background: #1a7a1a;
+}
+
+.come-area h3 {
+  color: #fff;
+  font-size: 1.5rem;
+  margin: 0;
+  letter-spacing: 3px;
+}
+
+/* Field Area */
+.field-area {
+  background: #0d5a0d;
+  border-bottom: 2px solid #ffd700;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.field-area:hover {
+  background: #0f6d0f;
+}
+
+.field-area.selected {
+  background: #1a7a1a;
+}
+
+.field-area h3 {
+  color: #ffd700;
+  text-align: center;
+  margin: 0 0 10px 0;
+  font-size: 1.3rem;
+  letter-spacing: 2px;
+}
+
+.field-numbers {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.field-numbers span {
+  background: #0a4a0a;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid #ffd700;
+  color: #fff;
+  font-weight: bold;
+}
+
+.field-numbers span.double {
+  background: #8b0000;
+}
+
+/* Pass Line */
+.pass-line {
+  background: #0d5a0d;
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.pass-line:hover {
+  background: #0f6d0f;
+}
+
+.pass-line.selected {
+  background: #1a7a1a;
+  box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.pass-line h3 {
+  color: #fff;
+  font-size: 1.5rem;
+  margin: 0;
+  letter-spacing: 3px;
+}
+
+/* Propositions */
+.propositions {
+  background: #0d5a0d;
+  border-left: 2px solid #ffd700;
+  display: grid;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 2px;
+}
+
+.prop-bet {
+  background: #0a4a0a;
+  border: 1px solid #ffd700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  padding: 10px;
+}
+
+.prop-bet:hover {
+  background: #0f6d0f;
+}
+
+.prop-bet.selected {
+  background: #1a7a1a;
+}
+
+.prop-bet h4 {
+  color: #ffd700;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.prop-bet span {
+  color: #fff;
+  font-size: 0.8rem;
+  margin-top: 5px;
+}
+
+/* Dice Display Area */
+.dice-display-area {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  border-radius: 15px;
+  border: 3px solid #ffd700;
+  display: none;
+  z-index: 10;
+}
+
+.dice-display-area.active {
+  display: block;
+}
+
+.dice-result {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.die-result {
+  width: 60px;
+  height: 60px;
+  background: #fff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  animation: diceRoll 0.5s ease-out;
+}
+
+@keyframes diceRoll {
+  0% { transform: rotate(0deg) scale(0); }
+  50% { transform: rotate(180deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.dice-total {
+  text-align: center;
+  font-size: 1.5rem;
+  color: #ffd700;
+  font-weight: bold;
+}
+
+/* Control Panel */
+.control-panel {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 1.5rem;
+  border-radius: 10px;
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.bet-amount-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bet-amount-control label {
+  color: #ffd700;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.bet-amount-control input {
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid #ffd700;
+  color: #fff;
+  padding: 8px 15px;
+  border-radius: 5px;
+  width: 100px;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.roll-button {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  padding: 12px 40px;
+  border-radius: 25px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 5px 15px rgba(220, 38, 38, 0.4);
+}
+
+.roll-button:hover {
+  background: #ef4444;
+  transform: translateY(-2px);
+  box-shadow: 0 7px 20px rgba(220, 38, 38, 0.6);
+}
+
+.roll-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Game Status */
+.game-status {
+  text-align: center;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+}
+
+.game-phase {
+  color: #ffd700;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 0.5rem;
+}
+
+.result-message {
+  font-size: 1.5rem;
+  font-weight: bold;
+  padding: 1rem;
+  border-radius: 10px;
+  margin-top: 1rem;
+  display: none;
+}
+
+.result-message.win {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+  border: 2px solid #22c55e;
+  display: block;
+}
+
+.result-message.loss {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 2px solid #ef4444;
+  display: block;
+}
+
+/* Chip on bet area */
+.bet-chip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  background: radial-gradient(circle, #ff0000, #8b0000);
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+  border: 3px dashed #fff;
+}
+
+.selected .bet-chip {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .craps-table {
+    grid-template-columns: 1fr;
+  }
+  
+  .dont-pass-bar span {
+    writing-mode: horizontal-tb;
+  }
+  
+  .numbers-area {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+</style>
+
+<div class="craps-container">
+  <div class="craps-header">
+    <h1>🎲 CRAPS TABLE</h1>
+    <div class="balance-display">
+      Balance: $<span id="credits"><%= user.credits.toFixed(2) %></span>
+    </div>
+  </div>
+
+  <div class="craps-table-container">
+    <div class="craps-table">
+      <!-- Don't Pass Bar -->
+      <div class="dont-pass-bar" onclick="selectBet('dontPass')">
+        <span>DON'T PASS BAR</span>
+        <div class="bet-chip" id="dontPassChip"></div>
+      </div>
+
+      <!-- Center Area -->
+      <div class="center-area">
+        <!-- Point Numbers -->
+        <div class="numbers-area">
+          <div class="point-box" data-number="4">
+            <div class="point-marker">ON</div>
+            <div class="number">4</div>
+            <div class="odds">9:5</div>
+          </div>
+          <div class="point-box" data-number="5">
+            <div class="point-marker">ON</div>
+            <div class="number">5</div>
+            <div class="odds">7:5</div>
+          </div>
+          <div class="point-box" data-number="6">
+            <div class="point-marker">ON</div>
+            <div class="number">6</div>
+            <div class="odds">7:6</div>
+          </div>
+          <div class="point-box" data-number="8">
+            <div class="point-marker">ON</div>
+            <div class="number">8</div>
+            <div class="odds">7:6</div>
+          </div>
+          <div class="point-box" data-number="9">
+            <div class="point-marker">ON</div>
+            <div class="number">9</div>
+            <div class="odds">7:5</div>
+          </div>
+          <div class="point-box" data-number="10">
+            <div class="point-marker">ON</div>
+            <div class="number">10</div>
+            <div class="odds">9:5</div>
+          </div>
+        </div>
+
+        <!-- Come Area -->
+        <div class="come-area" onclick="selectBet('come')" style="display: none;">
+          <h3>COME</h3>
+          <div class="bet-chip" id="comeChip"></div>
+        </div>
+
+        <!-- Field Area -->
+        <div class="field-area" onclick="selectBet('field')">
+          <h3>FIELD</h3>
+          <div class="field-numbers">
+            <span class="double">2</span>
+            <span>3</span>
+            <span>4</span>
+            <span>9</span>
+            <span>10</span>
+            <span>11</span>
+            <span class="double">12</span>
+          </div>
+          <div class="bet-chip" id="fieldChip"></div>
+        </div>
+
+        <!-- Pass Line -->
+        <div class="pass-line" onclick="selectBet('passLine')">
+          <h3>PASS LINE</h3>
+          <div class="bet-chip" id="passLineChip"></div>
+        </div>
+      </div>
+
+      <!-- Proposition Bets -->
+      <div class="propositions">
+        <div class="prop-bet" onclick="selectBet('any7')">
+          <h4>Any 7</h4>
+          <span>4:1</span>
+          <div class="bet-chip" id="any7Chip"></div>
+        </div>
+        <div class="prop-bet" onclick="selectBet('anyCraps')">
+          <h4>Any Craps</h4>
+          <span>7:1</span>
+          <div class="bet-chip" id="anyCrapsChip"></div>
+        </div>
+        <div class="prop-bet" onclick="selectBet('hard6')">
+          <h4>Hard 6</h4>
+          <span>9:1</span>
+        </div>
+        <div class="prop-bet" onclick="selectBet('hard8')">
+          <h4>Hard 8</h4>
+          <span>9:1</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dice Display Overlay -->
+    <div class="dice-display-area" id="diceDisplay">
+      <div class="dice-result">
+        <div class="die-result" id="die1">🎲</div>
+        <div class="die-result" id="die2">🎲</div>
+      </div>
+      <div class="dice-total">Total: <span id="diceTotal">0</span></div>
+    </div>
+  </div>
+
+  <!-- Control Panel -->
+  <div class="control-panel">
+    <div class="bet-amount-control">
+      <label>Bet Amount:</label>
+      <input type="number" id="betAmount" value="10" min="1" max="<%= user.credits %>" step="1">
+    </div>
+    <button class="roll-button" id="rollBtn" onclick="rollDice()">🎲 ROLL DICE</button>
+    <button class="roll-button" id="newGameBtn" onclick="newGame()" style="display: none;">NEW GAME</button>
+  </div>
+
+  <!-- Game Status -->
+  <div class="game-status">
+    <div class="game-phase" id="gamePhase">Come Out Roll - Place Your Bets</div>
+    <div class="result-message" id="resultMessage"></div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// [Keep the same JavaScript as before, it works fine]
+(function() {
+  const socket = io()
+  const username = '<%= user.username %>'
+  let currentCredits = Number('<%= user.credits %>')
+  let selectedBet = null
+  let point = null
+  let isRolling = false
+
+  window.selectBet = function(betType) {
+    if (isRolling) return
+    
+    // Clear previous selections
+    document.querySelectorAll('.selected').forEach(el => {
+      el.classList.remove('selected')
+    })
+    
+    // Add selected class
+    if (betType === 'passLine') {
+      document.querySelector('.pass-line').classList.add('selected')
+    } else if (betType === 'dontPass') {
+      document.querySelector('.dont-pass-bar').classList.add('selected')
+    } else if (betType === 'field') {
+      document.querySelector('.field-area').classList.add('selected')
+    } else if (betType === 'come') {
+      document.querySelector('.come-area').classList.add('selected')
+    } else if (betType === 'any7' || betType === 'anyCraps') {
+      document.querySelector(`[onclick="selectBet('${betType}')"]`).classList.add('selected')
+    }
+    
+    selectedBet = betType
+    
+    // Update chip display
+    document.querySelectorAll('.bet-chip').forEach(chip => {
+      chip.textContent = document.getElementById('betAmount').value
+    })
+  }
+
+  window.rollDice = async function() {
+    if (isRolling || !selectedBet) {
+      if (!selectedBet) alert('Please select a bet first!')
+      return
+    }
+    
+    const betAmount = Number(document.getElementById('betAmount').value)
+    if (betAmount <= 0 || betAmount > currentCredits) {
+      alert(`Invalid bet! You have $${currentCredits.toFixed(2)}`)
+      return
+    }
+    
+    isRolling = true
+    document.getElementById('rollBtn').disabled = true
+    
+    try {
+      const res = await fetch('/games/craps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ betAmount, betType: selectedBet, point })
+      })
+      
+      const data = await res.json()
+      
+      if (!data.success) {
+        alert(data.error || 'Roll failed')
+        isRolling = false
+        document.getElementById('rollBtn').disabled = false
+        return
+      }
+      
+      // Show dice
+      const diceSymbols = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
+      document.getElementById('diceDisplay').classList.add('active')
+      document.getElementById('die1').textContent = diceSymbols[data.die1]
+      document.getElementById('die2').textContent = diceSymbols[data.die2]
+      document.getElementById('diceTotal').textContent = data.total
+      
+      // Update credits
+      currentCredits = data.credits
+      document.getElementById('credits').textContent = currentCredits.toFixed(2)
+      
+      // Update point
+      if (data.point && !data.gameOver) {
+        point = data.point
+        document.querySelectorAll('.point-box').forEach(box => {
+          box.classList.remove('point')
+          if (box.dataset.number == data.point) {
+            box.classList.add('point')
+          }
+        })
+        document.getElementById('gamePhase').textContent = `Point is ${data.point} - Roll to hit the point!`
+        
+        // Show come bet option
+        document.querySelector('.come-area').style.display = 'block'
+      }
+      
+      // Handle game over
+      if (data.gameOver) {
+        const msg = document.getElementById('resultMessage')
+        if (data.winAmount > 0) {
+          msg.textContent = `🎉 Winner! You won $${data.winAmount.toFixed(2)}!`
+          msg.className = 'result-message win'
+        } else {
+          msg.textContent = `😢 You lost $${betAmount.toFixed(2)}`
+          msg.className = 'result-message loss'
+        }
+        
+        document.getElementById('rollBtn').style.display = 'none'
+        document.getElementById('newGameBtn').style.display = 'inline-block'
+        
+        socket.emit('game:result', {
+          username,
+          gameType: 'craps',
+          result: data.winAmount > 0 ? 'win' : 'loss',
+          amount: data.winAmount || betAmount
+        })
+      } else {
+        isRolling = false
+        document.getElementById('rollBtn').disabled = false
+      }
+      
+      // Hide dice after 2 seconds
+      setTimeout(() => {
+        document.getElementById('diceDisplay').classList.remove('active')
+      }, 2000)
+      
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Roll failed')
+      isRolling = false
+      document.getElementById('rollBtn').disabled = false
+    }
+  }
+
+  window.newGame = function() {
+    point = null
+    selectedBet = null
+    isRolling = false
+    
+    document.querySelectorAll('.selected').forEach(el => {
+      el.classList.remove('selected')
+    })
+    
+    document.querySelectorAll('.point-box').forEach(box => {
+      box.classList.remove('point')
+    })
+    
+    document.querySelector('.come-area').style.display = 'none'
+    document.getElementById('gamePhase').textContent = 'Come Out Roll - Place Your Bets'
+    document.getElementById('resultMessage').className = 'result-message'
+    document.getElementById('rollBtn').style.display = 'inline-block'
+    document.getElementById('rollBtn').disabled = false
+    document.getElementById('newGameBtn').style.display = 'none'
+  }
+})()
+</script>
+
+<%- include('../partials/footer') %>

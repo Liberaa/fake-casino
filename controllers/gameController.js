@@ -44,6 +44,180 @@ exports.cashoutMines = async (req, res) => {
   })
 }
 
+exports.playCraps = async (req, res) => {
+  try {
+    const { betAmount, betType, point } = req.body
+    const user = await User.findById(req.session.userId)
+
+    if (!user) {
+      return res.status(401).json({ error: 'Not authenticated' })
+    }
+
+    if (!betAmount || betAmount <= 0 || betAmount > user.credits) {
+      return res.status(400).json({ error: 'Invalid bet amount' })
+    }
+
+    const validBets = ['passLine', 'dontPass', 'come', 'dontCome', 'field', 'any7', 'anyCraps']
+    if (!validBets.includes(betType)) {
+      return res.status(400).json({ error: 'Invalid bet type' })
+    }
+
+    // Deduct bet
+    user.credits -= betAmount
+
+    // Roll dice
+    const serverSeed = crypto.randomBytes(32).toString('hex')
+    const random1 = getRandomResult(serverSeed + '1')
+    const random2 = getRandomResult(serverSeed + '2')
+    const die1 = Math.floor(random1 * 6) + 1
+    const die2 = Math.floor(random2 * 6) + 1
+    const total = die1 + die2
+
+    let winAmount = 0
+    let result = 'loss'
+    let newPoint = point
+    let gameOver = false
+
+    // Pass Line / Don't Pass logic
+    if (betType === 'passLine' || betType === 'dontPass') {
+      if (!point) {
+        // Come out roll
+        if (total === 7 || total === 11) {
+          if (betType === 'passLine') {
+            winAmount = betAmount * 2
+            result = 'win'
+          }
+          gameOver = true
+        } else if (total === 2 || total === 3 || total === 12) {
+          if (betType === 'dontPass' && total !== 12) { // 12 is push for don't pass
+            winAmount = betAmount * 2
+            result = 'win'
+          } else if (total === 12 && betType === 'dontPass') {
+            winAmount = betAmount // Push - return bet
+            result = 'push'
+          }
+          gameOver = true
+        } else {
+          // Point established
+          newPoint = total
+        }
+      } else {
+        // Point phase
+        if (total === point) {
+          if (betType === 'passLine') {
+            winAmount = betAmount * 2
+            result = 'win'
+          }
+          gameOver = true
+        } else if (total === 7) {
+          if (betType === 'dontPass') {
+            winAmount = betAmount * 2
+            result = 'win'
+          }
+          gameOver = true
+        }
+      }
+    }
+
+    // Field bet
+    if (betType === 'field') {
+      if ([3, 4, 9, 10, 11].includes(total)) {
+        winAmount = betAmount * 2
+        result = 'win'
+      } else if (total === 2 || total === 12) {
+        winAmount = betAmount * 3 // 2:1 payout
+        result = 'win'
+      }
+      gameOver = true
+    }
+
+    // Any Seven
+    if (betType === 'any7') {
+      if (total === 7) {
+        winAmount = betAmount * 5 // 4:1 payout
+        result = 'win'
+      }
+      gameOver = true
+    }
+
+    // Any Craps
+    if (betType === 'anyCraps') {
+      if (total === 2 || total === 3 || total === 12) {
+        winAmount = betAmount * 8 // 7:1 payout
+        result = 'win'
+      }
+      gameOver = true
+    }
+
+    // Come / Don't Come (similar to pass/don't pass but during point phase)
+    if (betType === 'come' || betType === 'dontCome') {
+      if (total === 7 || total === 11) {
+        if (betType === 'come') {
+          winAmount = betAmount * 2
+          result = 'win'
+        }
+      } else if (total === 2 || total === 3 || total === 12) {
+        if (betType === 'dontCome' && total !== 12) {
+          winAmount = betAmount * 2
+          result = 'win'
+        }
+      }
+      gameOver = true
+    }
+
+    // Update user balance
+    user.credits += winAmount
+    user.totalWagered = (user.totalWagered || 0) + betAmount
+
+    if (winAmount > 0) {
+      user.totalWins++
+      if (winAmount > (user.biggestWin || 0)) {
+        user.biggestWin = winAmount
+      }
+    } else if (result === 'loss') {
+      user.totalLosses++
+    }
+
+    await user.save()
+
+    // Save game if it's over
+    if (gameOver) {
+      const game = new Game({
+        user: user._id,
+        gameType: 'craps',
+        betAmount,
+        result: result === 'push' ? 'loss' : result,
+        winAmount: winAmount > betAmount ? winAmount - betAmount : 0,
+        details: {
+          die1,
+          die2,
+          total,
+          betType,
+          point,
+          serverSeed,
+          verificationHash: crypto.createHash('sha256').update(serverSeed).digest('hex')
+        }
+      })
+      await game.save()
+    }
+
+    res.json({
+      success: true,
+      die1,
+      die2,
+      total,
+      point: newPoint,
+      gameOver,
+      winAmount,
+      result,
+      credits: user.credits
+    })
+  } catch (error) {
+    console.error('Craps error:', error)
+    res.status(500).json({ error: 'Game failed' })
+  }
+}
+
 
 
 exports.playSlots = async (req, res) => {
