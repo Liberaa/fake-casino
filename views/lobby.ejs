@@ -1,255 +1,263 @@
 <%- include('partials/header') %>
-<%- include('partials/navbar', { user }) %>
+  <%- include('partials/navbar', { user }) %>
 
-<style>
-.bonus-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 15px;
-  padding: 1.5rem;
-  margin: 1rem 0;
-  text-align: center;
-  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
-}
-
-.bonus-amount {
-  font-size: 2.5rem;
-  font-weight: bold;
-  color: #fbbf24;
-  margin: 0.5rem 0;
-}
-
-.bonus-tier {
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 1rem;
-}
-
-.level-badge-large {
-  font-size: 2rem;
-  margin-right: 0.5rem;
-}
-
-.btn-bonus {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  color: #1e1e2e;
-  border: none;
-  padding: 1rem 2rem;
-  border-radius: 10px;
-  font-size: 1.2rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s;
-  width: 100%;
-}
-
-.btn-bonus:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(251, 191, 36, 0.5);
-}
-
-.btn-bonus:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.next-bonus-timer {
-  font-size: 0.9rem;
-  color: #888;
-  margin-top: 0.5rem;
-}
-</style>
-
-<div class="lobby-container">
-  <div class="welcome-section">
-    <h1>Welcome, <%= user.username %>! </h1>
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-value"> <%= user.credits.toFixed(2) %></div>
-        <div class="stat-label">Brap Coins</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value"> <%= user.totalWins %></div>
-        <div class="stat-label">Total Wins</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value"> <%= user.totalLosses %></div>
-        <div class="stat-label">Total Losses</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" id="onlineUsers">0</div>
-        <div class="stat-label">Players Online</div>
-      </div>
-    </div>
-    
-    <!-- Daily Bonus Card -->
-    <div class="bonus-card">
-      <%
-        let level = user.level || 1;
-        let bonus = 100;
-        let tier = 'Beginner';
-        let badge = '🎮';
-        
-        if (level >= 1000) {
-          bonus = 10000;
-          tier = 'VIP Legend';
-          badge = '👑';
-        } else if (level >= 500) {
-          bonus = 5000;
-          tier = 'Diamond';
-          badge = '💎';
-        } else if (level >= 250) {
-          bonus = 2500;
-          tier = 'Platinum';
-          badge = '🏆';
-        } else if (level >= 100) {
-          bonus = 1000;
-          tier = 'Gold';
-          badge = '🥇';
-        } else if (level >= 50) {
-          bonus = 500;
-          tier = 'Silver';
-          badge = '🥈';
-        } else if (level >= 25) {
-          bonus = 250;
-          tier = 'Bronze';
-          badge = '🥉';
-        }
-      %>
-      
-      <div class="bonus-tier">
-        <span class="level-badge-large"><%= badge %></span>
-        <%= tier %> : Tier
-      </div>
-      <div class="bonus-amount">🎁 <%= bonus.toLocaleString() %> Brap Coins</div>
-      
-      <button onclick="claimDailyBonus()" class="btn-bonus" id="bonusBtn">
-        Claim Daily Bonus
-      </button>
-      <div class="next-bonus-timer" id="bonusTimer"></div>
-    </div>
-    
-    <p class="message" id="bonusMessage"></p>
-  </div>
-
-  <div class="games-section">
-    <h2> Choose Your Game</h2>
-    <div class="games-grid">
-      <a href="/games/slots" class="game-card">
-        <div class="game-icon">🎰</div>
-        <h3>Slots</h3>
-        <p>Match symbols to win big!</p>
-      </a>
-      <a href="/games/roulette" class="game-card">
-        <div class="game-icon">🎡</div>
-        <h3>Roulette</h3>
-        <p>Bet on symbols</p>
-      </a>
-      <a href="/games/blackjack" class="game-card">
-        <div class="game-icon">🂡</div>
-        <h3>Blackjack</h3>
-        <p>Beat the dealer to 21</p>
-      </a>
-      <a href="/games/dice" class="game-card">
-        <div class="game-icon">🎲</div>
-        <h3>Dice</h3>
-        <p>Roll under & win</p>
-      </a>
-    </div>
-  </div>
-
-  <div class="activity-feed">
-    <h3></h3>
-    <div id="activityList">
-    </div>
-  </div>
-</div>
-
-<script>
-const socket = io()
-
-socket.emit('lobby:join', { username: '<%= user.username %>' })
-
-socket.on('lobby:updateUsers', (data) => {
-  document.getElementById('onlineUsers').textContent = data.count
-})
-
-socket.on('game:broadcast', (data) => {
-  const activityList = document.getElementById('activityList')
-  const item = document.createElement('div')
-  item.className = 'activity-item'
-  
-  const emoji = data.result === 'win' ? '🎉' : '😢'
-  item.textContent = `${emoji} ${data.username} ${data.result === 'win' ? 'won' : 'lost'} ${data.amount} coins on ${data.gameType}`
-  activityList.prepend(item)
-  
-  if (activityList.children.length > 10) {
-    activityList.removeChild(activityList.lastChild)
-  }
-})
-
-async function claimDailyBonus() {
-  const btn = document.getElementById('bonusBtn')
-  btn.disabled = true
-  
-  const res = await fetch('/api/daily-bonus', { method: 'POST' })
-  const data = await res.json()
-  
-  const msg = document.getElementById('bonusMessage')
-  if (data.success) {
-    msg.textContent = `✅ Bonus claimed! +${data.bonus.toLocaleString()} Brap Coins`
-    msg.className = 'message success'
-    setTimeout(() => location.reload(), 1500)
-  } else {
-    msg.textContent = '❌ ' + (data.error || 'Cannot claim yet')
-    msg.className = 'message error'
-    btn.disabled = false
-  }
-}
-
-// Check bonus status on load
-async function checkBonusStatus() {
-  try {
-    const res = await fetch('/api/daily-bonus-status')
-    const data = await res.json()
-    
-    const btn = document.getElementById('bonusBtn')
-    const timer = document.getElementById('bonusTimer')
-    
-    if (data.canClaim) {
-      btn.disabled = false
-      btn.textContent = `🎁 Claim ${data.bonus.toLocaleString()} Coins`
-      timer.textContent = ''
-    } else {
-      btn.disabled = true
-      btn.textContent = 'Already Claimed Today'
-      
-      if (data.nextClaimTime) {
-        const updateTimer = () => {
-          const now = new Date()
-          const next = new Date(data.nextClaimTime)
-          const diff = next - now
-          
-          if (diff <= 0) {
-            location.reload()
-            return
-          }
-          
-          const hours = Math.floor(diff / (1000 * 60 * 60))
-          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-          const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-          timer.textContent = `Next bonus in ${hours}h ${minutes}m ${seconds}s`
-        }
-        
-        updateTimer()
-        setInterval(updateTimer, 1000)
+    <style>
+      .bonus-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        text-align: center;
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
       }
-    }
-  } catch (error) {
-    console.error('Bonus status error:', error)
-  }
-}
 
-checkBonusStatus()
-</script>
+      .bonus-amount {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #fbbf24;
+        margin: 0.5rem 0;
+      }
 
-<%- include('partials/footer') %>
+      .bonus-tier {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 1rem;
+      }
+
+      .level-badge-large {
+        font-size: 2rem;
+        margin-right: 0.5rem;
+      }
+
+      .btn-bonus {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        color: #1e1e2e;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        width: 100%;
+      }
+
+      .btn-bonus:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(251, 191, 36, 0.5);
+      }
+
+      .btn-bonus:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .next-bonus-timer {
+        font-size: 0.9rem;
+        color: #888;
+        margin-top: 0.5rem;
+      }
+    </style>
+
+    <div class="lobby-container">
+      <div class="welcome-section">
+        <h1>Welcome, <%= user.username %>! </h1>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value">
+              <%= user.credits.toFixed(2) %>
+            </div>
+            <div class="stat-label">Brap Coins</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">
+              <%= user.totalWins %>
+            </div>
+            <div class="stat-label">Total Wins</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">
+              <%= user.totalLosses %>
+            </div>
+            <div class="stat-label">Total Losses</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="onlineUsers">0</div>
+            <div class="stat-label">Players Online</div>
+          </div>
+        </div>
+
+        <!-- Daily Bonus Card -->
+        <div class="bonus-card">
+          <% let level=user.level || 1; let bonus=100; let tier='Beginner' ; let badge='🎮' ; if (level>= 1000) {
+            bonus = 10000;
+            tier = 'VIP Legend';
+            badge = '👑';
+            } else if (level >= 500) {
+            bonus = 5000;
+            tier = 'Diamond';
+            badge = '💎';
+            } else if (level >= 250) {
+            bonus = 2500;
+            tier = 'Platinum';
+            badge = '🏆';
+            } else if (level >= 100) {
+            bonus = 1000;
+            tier = 'Gold';
+            badge = '🥇';
+            } else if (level >= 50) {
+            bonus = 500;
+            tier = 'Silver';
+            badge = '🥈';
+            } else if (level >= 25) {
+            bonus = 250;
+            tier = 'Bronze';
+            badge = '🥉';
+            }
+            %>
+
+            <div class="bonus-tier">
+              <span class="level-badge-large">
+                <%= badge %>
+              </span>
+              <%= tier %> : Tier
+            </div>
+            <div class="bonus-amount">🎁 <%= bonus.toLocaleString() %> Brap Coins</div>
+
+            <button onclick="claimDailyBonus()" class="btn-bonus" id="bonusBtn">
+              Claim Daily Bonus
+            </button>
+            <div class="next-bonus-timer" id="bonusTimer"></div>
+        </div>
+
+        <p class="message" id="bonusMessage"></p>
+      </div>
+
+      <div class="games-section">
+        <h2> Choose Your Game</h2>
+        <div class="games-grid">
+          <a href="/games/slots" class="game-card">
+            <div class="game-icon">🎰</div>
+            <h3>Slots</h3>
+            <p>Match symbols to win big!</p>
+          </a>
+          <a href="/games/roulette" class="game-card">
+            <div class="game-icon">🎡</div>
+            <h3>Roulette</h3>
+            <p>Bet on symbols</p>
+          </a>
+          <a href="/games/blackjack" class="game-card">
+            <div class="game-icon">🂡</div>
+            <h3>Blackjack</h3>
+            <p>Beat the dealer to 21</p>
+          </a>
+          <a href="/games/dice" class="game-card">
+            <div class="game-icon">🎲</div>
+            <h3>Dice</h3>
+            <p>Roll under & win</p>
+          </a>
+          <a href="/games/mines" class="game-card">
+            <div class="game-icon">💣</div>
+            <h3>Mines</h3>
+            <p>Avoid the bombs, cash out anytime</p>
+          </a>
+
+        </div>
+      </div>
+
+      <div class="activity-feed">
+        <h3></h3>
+        <div id="activityList">
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const socket = io()
+
+      socket.emit('lobby:join', { username: '<%= user.username %>' })
+
+      socket.on('lobby:updateUsers', (data) => {
+        document.getElementById('onlineUsers').textContent = data.count
+      })
+
+      socket.on('game:broadcast', (data) => {
+        const activityList = document.getElementById('activityList')
+        const item = document.createElement('div')
+        item.className = 'activity-item'
+
+        const emoji = data.result === 'win' ? '🎉' : '😢'
+        item.textContent = `${emoji} ${data.username} ${data.result === 'win' ? 'won' : 'lost'} ${data.amount} coins on ${data.gameType}`
+        activityList.prepend(item)
+
+        if (activityList.children.length > 10) {
+          activityList.removeChild(activityList.lastChild)
+        }
+      })
+
+      async function claimDailyBonus() {
+        const btn = document.getElementById('bonusBtn')
+        btn.disabled = true
+
+        const res = await fetch('/api/daily-bonus', { method: 'POST' })
+        const data = await res.json()
+
+        const msg = document.getElementById('bonusMessage')
+        if (data.success) {
+          msg.textContent = `✅ Bonus claimed! +${data.bonus.toLocaleString()} Brap Coins`
+          msg.className = 'message success'
+          setTimeout(() => location.reload(), 1500)
+        } else {
+          msg.textContent = '❌ ' + (data.error || 'Cannot claim yet')
+          msg.className = 'message error'
+          btn.disabled = false
+        }
+      }
+
+      // Check bonus status on load
+      async function checkBonusStatus() {
+        try {
+          const res = await fetch('/api/daily-bonus-status')
+          const data = await res.json()
+
+          const btn = document.getElementById('bonusBtn')
+          const timer = document.getElementById('bonusTimer')
+
+          if (data.canClaim) {
+            btn.disabled = false
+            btn.textContent = `🎁 Claim ${data.bonus.toLocaleString()} Coins`
+            timer.textContent = ''
+          } else {
+            btn.disabled = true
+            btn.textContent = 'Already Claimed Today'
+
+            if (data.nextClaimTime) {
+              const updateTimer = () => {
+                const now = new Date()
+                const next = new Date(data.nextClaimTime)
+                const diff = next - now
+
+                if (diff <= 0) {
+                  location.reload()
+                  return
+                }
+
+                const hours = Math.floor(diff / (1000 * 60 * 60))
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+                timer.textContent = `Next bonus in ${hours}h ${minutes}m ${seconds}s`
+              }
+
+              updateTimer()
+              setInterval(updateTimer, 1000)
+            }
+          }
+        } catch (error) {
+          console.error('Bonus status error:', error)
+        }
+      }
+
+      checkBonusStatus()
+    </script>
+
+    <%- include('partials/footer') %>

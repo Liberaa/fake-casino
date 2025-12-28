@@ -8,6 +8,44 @@ function getRandomResult(seed) {
   return parseInt(hash.substring(0, 8), 16) / 0xffffffff
 }
 
+exports.startMines = async (req, res) => {
+  const { bet, mines } = req.body
+
+  if (!bet || bet <= 0) {
+    return res.status(400).json({ error: 'Invalid bet' })
+  }
+
+  if (!mines || mines < 1 || mines > 24) {
+    return res.status(400).json({ error: 'Invalid mines count' })
+  }
+
+  res.json({
+    gridSize: 25,
+    balance: req.user?.credits ?? 0
+  })
+}
+
+// =======================
+// MINES TEMP STUBS
+// =======================
+
+exports.clickMines = async (req, res) => {
+  res.json({
+    hitMine: false,
+    multiplier: 1.25,
+    balance: 1000
+  })
+}
+
+exports.cashoutMines = async (req, res) => {
+  res.json({
+    winAmount: 50,
+    balance: 1050
+  })
+}
+
+
+
 exports.playSlots = async (req, res) => {
   try {
     const { betAmount } = req.body

@@ -30,6 +30,18 @@ router.get('/lobby', requireAuth, async (req, res, next) => {
   }
 })
 
+router.get('/games/mines', requireAuth, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.session.userId).lean()
+    if (!user) return res.redirect('/')
+res.render('games/mines', { user })
+  } catch (err) {
+    next(err)
+  }
+})
+
+
+
 // Games (VIEWS ONLY — NO LOGIC)
 router.get('/games/slots', requireAuth, async (req, res, next) => {
   try {

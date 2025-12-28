@@ -13,5 +13,23 @@ router.post('/slots', requireAuth, gameController.playSlots)
 router.post('/roulette/bet', requireAuth, gameController.playRoulette)
 router.post('/blackjack', requireAuth, gameController.playBlackjack)
 router.post('/dice', requireAuth, gameController.playDice)
+router.post('/mines/start',
+  requireAuth,
+  securityMiddleware,
+  gameController.startMines
+);
+
+router.post('/mines/click',
+  requireAuth,
+  securityMiddleware,
+  gameController.clickMines
+);
+
+router.post('/mines/cashout',
+  requireAuth,
+  securityMiddleware,
+  gameController.cashoutMines
+);
+
 
 module.exports = router

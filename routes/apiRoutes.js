@@ -1,6 +1,9 @@
 const express = require('express')
 const router = express.Router()
 const User = require('../models/User')
+const gameController = require('../controllers/gameController')
+const securityMiddleware = require('../middleware/security')
+
 
 // Middleware
 const requireAuth = (req, res, next) => {
@@ -105,5 +108,26 @@ router.post('/daily-bonus', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Failed to claim bonus' })
   }
 })
+
+// ===== MINES GAME =====
+router.post(
+  '/mines/start',
+  requireAuth,
+  gameController.startMines
+)
+
+router.post(
+  '/mines/click',
+  requireAuth,
+  gameController.clickMines
+)
+
+router.post(
+  '/mines/cashout',
+  requireAuth,
+  gameController.cashoutMines
+)
+
+
 
 module.exports = router
