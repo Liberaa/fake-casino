@@ -12,15 +12,35 @@
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
+    "mongoose": "^7.5.0",
+    "mongodb": "^5.7.0",
+    "bcrypt": "^5.1.1",
     "express-session": "^1.17.3",
-    "socket.io": "^4.6.1",
-    "mongoose": "^7.0.3",
-    "bcrypt": "^5.1.0",
+    "connect-mongo": "^5.0.0",
+    "socket.io": "^4.5.4",
     "ejs": "^3.1.9",
-    "dotenv": "^16.0.3",
-    "connect-mongo": "^5.0.0"
+    "dotenv": "^16.3.1",
+    "redis": "^4.6.10",
+    "helmet": "^7.0.0",
+    "express-mongo-sanitize": "^2.2.0",
+    "xss-clean": "^0.1.4",
+    "hpp": "^0.2.3",
+    "cors": "^2.8.5",
+    "compression": "^1.7.4",
+    "express-rate-limit": "^6.10.0",
+    "rate-limit-redis": "^3.1.0",
+    "csurf": "^1.11.0",
+    "express-validator": "^7.0.1",
+    "winston": "^3.10.0",
+    "morgan": "^1.10.0",
+    "speakeasy": "^2.0.0",
+    "qrcode": "^1.5.3",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "nodemon": "^3.0.1",
+    "jest": "^29.6.4",
+    "supertest": "^6.3.3",
+    "snyk": "^1.1219.0"
   }
 }

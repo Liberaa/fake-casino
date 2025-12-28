@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Error</title>
+  <style>
+    body {
+      background: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 5rem;
+    }
+    h1 { color: #ef4444; }
+    p { color: #ccc; }
+    a { color: #3b82f6; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>Error <%= status || 500 %></h1>
+  <p><%= message || 'Something went wrong' %></p>
+  <a href="/lobby">← Back to Lobby</a>
+</body>
+</html>

@@ -13,6 +13,7 @@ const io = new Server(server, {
   path: '/socket.io/'
 })
 
+// Connect to MongoDB
 connectDB()
 
 // Store io in app so controllers can access it
@@ -27,11 +28,11 @@ require('./sockets/chatSocket')(io)
 require('./sockets/gameSocket')(io)
 require('./sockets/lobbySocket')(io)
 require('./sockets/rouletteSocket')(io)
-require('./sockets/levelSocket')(io) 
+require('./sockets/levelSocket')(io)
 
 const PORT = process.env.PORT || 3000
 
 server.listen(PORT, () => {
-  console.log(`🎰 Brap Casino running on port ${PORT}`)
+  console.log(`🎰 Casino running on port ${PORT}`)
   console.log(`Visit: http://localhost:${PORT}`)
 })

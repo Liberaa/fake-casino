@@ -414,253 +414,182 @@
   </div>
 </div>
 
+<script src="/socket.io/socket.io.js"></script>
 <script>
-const socket = io()
-const username = '<%= user.username %>'
-let currentBet = 0
-let currentCredits = Number('<%= user.credits %>')
-let gameState = {
-  playerCards: [],
-  dealerCards: [],
-  dealerHoleCardRevealed: false
-}
+(function() {
+  const socket = io()
+  const username = '<%= user.username %>'
+  let currentCredits = Number('<%= user.credits %>')
+  let currentGameId = null
+  let isPlaying = false
 
-function getCardImage(card) {
-  if (!card || typeof card !== 'string') return '/img/red_joker.svg'
-  
-  const suitMap = { '♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs' }
-  const valueMap = {
-    'A': 'ace', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6',
-    '7': '7', '8': '8', '9': '9', '10': '10', 'J': 'jack', 'Q': 'queen', 'K': 'king'
+  function updateBalance(amount) {
+    currentCredits = amount
+    document.getElementById('credits').textContent = currentCredits.toFixed(2)
   }
-  
-  const suit = card.slice(-1)
-  const value = card.slice(0, -1)
-  
-  if (!suitMap[suit] || !valueMap[value]) return '/img/red_joker.svg'
-  
-  return `/img/${valueMap[value]}_of_${suitMap[suit]}.svg`
-}
 
-function renderCard(card, isHoleCard = false) {
-  if (isHoleCard) {
+  function renderCard(card, isHidden = false) {
+    if (isHidden) {
+      const div = document.createElement('div')
+      div.className = 'card-back new-card'
+      div.textContent = '🃏'
+      setTimeout(() => div.classList.remove('new-card'), 600)
+      return div
+    }
+    
     const div = document.createElement('div')
-    div.className = 'card-back new-card'
-    div.textContent = '🃏'
-    div.dataset.card = card
-    // Remove animation class after it completes
+    div.className = 'card new-card'
+    div.style.background = 'white'
+    div.style.color = card.includes('♥') || card.includes('♦') ? 'red' : 'black'
+    div.style.fontSize = '2rem'
+    div.style.display = 'flex'
+    div.style.alignItems = 'center'
+    div.style.justifyContent = 'center'
+    div.textContent = card
     setTimeout(() => div.classList.remove('new-card'), 600)
     return div
   }
-  
-  const img = document.createElement('img')
-  img.src = getCardImage(card)
-  img.className = 'card new-card'
-  img.alt = card
-  // Remove animation class after it completes
-  setTimeout(() => img.classList.remove('new-card'), 600)
-  return img
-}
 
-function updateDisplay(playerScore, dealerScore) {
-  document.getElementById('playerScore').textContent = `Score: ${playerScore}`
-  if (dealerScore !== null) {
-    document.getElementById('dealerScore').textContent = `Score: ${dealerScore}`
-  } else {
-    document.getElementById('dealerScore').textContent = ''
-  }
-}
-
-async function startGame() {
-  const betAmount = Number(document.getElementById('betAmount').value)
-  
-  if (betAmount <= 0 || betAmount > currentCredits) {
-    alert(`Invalid bet! You have ${currentCredits.toFixed(2)} coins`)
-    return
-  }
-
-     if (typeof emitBetPlaced === 'function') {
-    emitBetPlaced(betAmount)
-  }
-  
-  currentBet = betAmount
-  currentCredits -= betAmount
-  document.getElementById('credits').textContent = currentCredits.toFixed(2)
-  document.getElementById('betAmount').max = currentCredits
-  
-  // Emit bet placed for XP
-  if (typeof emitBetPlaced === 'function') {
-    emitBetPlaced(betAmount)
-  }
-  
-  const res = await fetch('/games/blackjack', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ betAmount: currentBet, action: 'deal' })
-  })
-  
-  const data = await res.json()
-  
-  if (data.success) {
-    gameState.playerCards = data.playerHand
-    gameState.dealerCards = data.dealerHand
-    gameState.dealerHoleCardRevealed = false
+  window.startGame = async function() {
+    if (isPlaying) return
     
-    // Clear hands
-    document.getElementById('playerHand').innerHTML = ''
-    document.getElementById('dealerHand').innerHTML = ''
+    const betAmount = Number(document.getElementById('betAmount').value)
     
-    // Show player cards
-    gameState.playerCards.forEach(card => {
-      document.getElementById('playerHand').appendChild(renderCard(card))
-    })
+    if (betAmount <= 0 || betAmount > currentCredits) {
+      alert(`Invalid bet! You have ${currentCredits.toFixed(2)} coins`)
+      return
+    }
     
-    // Show dealer cards (first one visible, second hidden)
-    document.getElementById('dealerHand').appendChild(renderCard(gameState.dealerCards[0]))
-    document.getElementById('dealerHand').appendChild(renderCard(gameState.dealerCards[1], true))
-    
-    updateDisplay(data.playerScore, null)
-    
+    isPlaying = true
     document.getElementById('betControls').style.display = 'none'
     document.getElementById('gameControls').style.display = 'flex'
-    document.getElementById('result').classList.remove('show')
     
-    currentCredits = data.credits
-    document.getElementById('credits').textContent = currentCredits.toFixed(2)
-    
-    if (data.gameOver) {
-      endGame(data)
-    }
-  } else {
-    currentCredits += betAmount
-    document.getElementById('credits').textContent = currentCredits.toFixed(2)
-    alert(data.error || 'Failed to start game')
-  }
-}
-
-async function hit() {
-  const res = await fetch('/games/blackjack', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      betAmount: currentBet, 
-      action: 'hit',
-      playerHand: gameState.playerCards,
-      dealerHand: gameState.dealerCards
-    })
-  })
-  
-  const data = await res.json()
-  
-  if (data.success) {
-    // Add only the new card
-    const newCard = data.playerHand[data.playerHand.length - 1]
-    gameState.playerCards.push(newCard)
-    document.getElementById('playerHand').appendChild(renderCard(newCard))
-    
-    updateDisplay(data.playerScore, null)
-    
-    currentCredits = data.credits
-    document.getElementById('credits').textContent = currentCredits.toFixed(2)
-    
-    if (data.gameOver) {
-      endGame(data)
-    }
-  }
-}
-
-async function stand() {
-  const res = await fetch('/games/blackjack', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      betAmount: currentBet, 
-      action: 'stand',
-      playerHand: gameState.playerCards,
-      dealerHand: gameState.dealerCards
-    })
-  })
-  
-  const data = await res.json()
-  
-  if (data.success) {
-    // Reveal hole card (flip animation only, no flying)
-    const dealerHand = document.getElementById('dealerHand')
-    const holeCardBack = dealerHand.querySelector('.card-back')
-    if (holeCardBack) {
-      const holeCard = holeCardBack.dataset.card
-      
-      const revealedCard = document.createElement('img')
-      revealedCard.src = getCardImage(holeCard)
-      revealedCard.className = 'card' // No 'new-card' class
-      revealedCard.alt = holeCard
-      revealedCard.style.animation = 'cardFlip 0.6s ease-out'
-      
-      setTimeout(() => {
-        holeCardBack.replaceWith(revealedCard)
-      }, 100)
-    }
-    
-    // Add new dealer cards if any (these DO fly from deck)
-    setTimeout(() => {
-      const newCards = data.dealerHand.slice(2)
-      newCards.forEach((card, index) => {
-        setTimeout(() => {
-          dealerHand.appendChild(renderCard(card))
-        }, index * 500)
+    try {
+      const res = await fetch('/games/blackjack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ betAmount })
       })
       
-      setTimeout(() => {
-        updateDisplay(data.playerScore, data.dealerScore)
+      const data = await res.json()
+      
+      if (!data.success) {
+        alert(data.error || 'Failed to start game')
+        resetGame()
+        return
+      }
+      
+      currentGameId = data.gameId
+      updateBalance(data.credits || currentCredits - betAmount)
+      
+      document.getElementById('playerHand').innerHTML = ''
+      document.getElementById('dealerHand').innerHTML = ''
+      
+      data.playerHand.forEach(card => {
+        document.getElementById('playerHand').appendChild(renderCard(card))
+      })
+      
+      document.getElementById('dealerHand').appendChild(renderCard(data.dealerHand[0]))
+      document.getElementById('dealerHand').appendChild(renderCard('', true))
+      
+      document.getElementById('playerScore').textContent = `Score: ${data.playerScore}`
+      
+      if (data.gameOver) {
         endGame(data)
-      }, newCards.length * 500 + 500)
-    }, 600)
-    
-    currentCredits = data.credits
-    document.getElementById('credits').textContent = currentCredits.toFixed(2)
+      }
+    } catch (error) {
+      console.error('Start game error:', error)
+      alert('Failed to start game')
+      resetGame()
+    }
   }
-}
 
-function endGame(data) {
-  document.getElementById('hitBtn').disabled = true
-  document.getElementById('standBtn').disabled = true
-  
-  // Always reveal dealer's hole card if it's still hidden
-  const dealerHand = document.getElementById('dealerHand')
-  const holeCardBack = dealerHand.querySelector('.card-back')
-  if (holeCardBack) {
-    const holeCard = holeCardBack.dataset.card
+  window.hit = async function() {
+    if (!currentGameId) return
     
-    // Just replace the card back with the card image (no new-card animation)
-    const revealedCard = document.createElement('img')
-    revealedCard.src = getCardImage(holeCard)
-    revealedCard.className = 'card' // No 'new-card' class
-    revealedCard.alt = holeCard
-    revealedCard.style.animation = 'cardFlip 0.6s ease-out'
-    
-    setTimeout(() => {
-      holeCardBack.replaceWith(revealedCard)
-    }, 100)
+    try {
+      const res = await fetch('/games/blackjack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          gameId: currentGameId,
+          action: 'hit'
+        })
+      })
+      
+      const data = await res.json()
+      
+      if (!data.success) {
+        alert(data.error || 'Action failed')
+        return
+      }
+      
+      const newCard = data.playerHand[data.playerHand.length - 1]
+      document.getElementById('playerHand').appendChild(renderCard(newCard))
+      
+      document.getElementById('playerScore').textContent = `Score: ${data.playerScore}`
+      
+      if (data.gameOver) {
+        endGame(data)
+      }
+    } catch (error) {
+      console.error('Hit error:', error)
+    }
   }
-  
-  // Show dealer's final score
-  setTimeout(() => {
-    updateDisplay(data.playerScore, data.dealerScore)
-  }, 600)
-  
-  setTimeout(() => {
+
+  window.stand = async function() {
+    if (!currentGameId) return
+    
+    try {
+      const res = await fetch('/games/blackjack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          gameId: currentGameId,
+          action: 'stand'
+        })
+      })
+      
+      const data = await res.json()
+      
+      if (!data.success) {
+        alert(data.error || 'Action failed')
+        return
+      }
+      
+      const dealerHand = document.getElementById('dealerHand')
+      dealerHand.innerHTML = ''
+      
+      data.dealerHand.forEach(card => {
+        dealerHand.appendChild(renderCard(card))
+      })
+      
+      document.getElementById('dealerScore').textContent = `Score: ${data.dealerScore}`
+      
+      endGame(data)
+    } catch (error) {
+      console.error('Stand error:', error)
+    }
+  }
+
+  function endGame(data) {
+    currentGameId = null
+    isPlaying = false
+    
     document.getElementById('gameControls').style.display = 'none'
     document.getElementById('newGameControl').style.display = 'block'
     
+    updateBalance(data.credits)
+    
     const result = document.getElementById('result')
     if (data.result === 'win') {
-      result.textContent = `🎉 You won ${data.winAmount.toFixed(2)} Coins!`
+      result.textContent = `🎉 You won ${data.winAmount.toFixed(2)} coins!`
       result.className = 'game-result win show'
     } else if (data.result === 'push') {
-      result.textContent = `🤝 Push! Your bet of ${currentBet.toFixed(2)} returned`
+      result.textContent = `🤝 Push! Bet returned`
       result.className = 'game-result push show'
     } else {
-      result.textContent = `😢 You lost ${currentBet.toFixed(2)} Coins`
+      result.textContent = `😢 You lost`
       result.className = 'game-result loss show'
     }
     
@@ -668,24 +597,22 @@ function endGame(data) {
       username,
       gameType: 'blackjack',
       result: data.result,
-      amount: data.result === 'win' ? data.winAmount : currentBet
+      amount: data.winAmount || 0
     })
-  }, 1000)
-}
+  }
 
-function resetGame() {
-  document.getElementById('betControls').style.display = 'flex'
-  document.getElementById('gameControls').style.display = 'none'
-  document.getElementById('newGameControl').style.display = 'none'
-  document.getElementById('result').classList.remove('show')
-  document.getElementById('playerHand').innerHTML = ''
-  document.getElementById('dealerHand').innerHTML = ''
-  document.getElementById('playerScore').textContent = ''
-  document.getElementById('dealerScore').textContent = ''
-  document.getElementById('hitBtn').disabled = false
-  document.getElementById('standBtn').disabled = false
-  gameState = { playerCards: [], dealerCards: [], dealerHoleCardRevealed: false }
-}
+  window.resetGame = function() {
+    currentGameId = null
+    isPlaying = false
+    document.getElementById('betControls').style.display = 'flex'
+    document.getElementById('gameControls').style.display = 'none'
+    document.getElementById('newGameControl').style.display = 'none'
+    document.getElementById('result').classList.remove('show')
+    document.getElementById('playerHand').innerHTML = ''
+    document.getElementById('dealerHand').innerHTML = ''
+    document.getElementById('playerScore').textContent = ''
+    document.getElementById('dealerScore').textContent = ''
+  }
+})()
 </script>
-
 <%- include('../partials/footer') %>

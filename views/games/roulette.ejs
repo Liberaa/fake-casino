@@ -117,6 +117,7 @@
 
 .reel-slot.moon { background: #4a5568; }
 .reel-slot.star { background: #f59e0b; }
+.reel-slot.sun { background: #fbbf24; }  /* Add this line */
 
 .center-indicator {
   position: absolute;
@@ -518,444 +519,232 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// Declare all variables first
-let userCredits = Number('<%= user.credits %>')
-let selectedBetType = null
-let isSpinning = false
-let moonBets = []
-let sunBets = []
-let starBets = []
+(function() {
+  // Wrap everything in a function to avoid global conflicts
+  const gameUserId = '<%= user._id %>'
+  const gameUsername = '<%= user.username %>'
+  let gameCredits = Number('<%= user.credits %>')
 
-let lastResults = [] // Track last 100 results
+  let moonBets = []
+  let sunBets = []
+  let starBets = []
+  let lastResults = []
 
-// Update stats display
-function updateStats() {
-  const moonCount = lastResults.filter(r => r === '🌙').length
-  const sunCount = lastResults.filter(r => r === '☀️').length
-  const starCount = lastResults.filter(r => r === '⭐').length
-  
-  document.getElementById('moonCount').textContent = moonCount
-  document.getElementById('sunCount').textContent = sunCount
-  document.getElementById('starCount').textContent = starCount
-}
+  const socket = io()
 
-const socket = io()
-const username = '<%= user.username %>'
+  // Make functions global so onclick can access them
+  window.clearBet = function() {
+    document.getElementById('betAmount').value = ''
+  }
 
-let timer = 10.00
-let timerInterval = null
-let canBet = true
-let activeBets = []
-let roundInProgress = false
+  window.adjustBet = function(v) {
+    const input = document.getElementById('betAmount')
+    input.value = Math.max(0.01, (parseFloat(input.value) || 0) + v).toFixed(2)
+  }
 
-// Socket event listeners for multiplayer
-socket.on('roulette:init', (data) => {
-  console.log('Joined roulette game:', data)
-  timer = parseFloat(data.timer)
-  canBet = data.canBet
-  lastResults = data.history
-  updateStats()
-})
+  window.halfBet = function() {
+    const input = document.getElementById('betAmount')
+    input.value = Math.max(0.01, (parseFloat(input.value) || 0) / 2).toFixed(2)
+  }
 
-socket.on('roulette:timerUpdate', (data) => {
-  timer = parseFloat(data.timer)
-  document.getElementById('timerValue').textContent = data.timer
-})
+  window.doubleBet = function() {
+    const input = document.getElementById('betAmount')
+    input.value = ((parseFloat(input.value) || 0) * 2).toFixed(2)
+  }
 
-socket.on('roulette:roundStarted', () => {
-  console.log('New round started')
-  canBet = true
-  activeBets = []
-  roundInProgress = false
-  
-  // Clear all bet lists
-  document.getElementById('moonBetsList').innerHTML = ''
-  document.getElementById('sunBetsList').innerHTML = ''
-  document.getElementById('starBetsList').innerHTML = ''
-  
-  moonBets = []
-  sunBets = []
-  starBets = []
-  updateTotals()
-  
-  generateReel()
-})
+  window.maxBet = function() {
+    document.getElementById('betAmount').value = gameCredits.toFixed(2)
+  }
 
-socket.on('roulette:clearBets', () => {
-  // Clear bet displays
-  document.getElementById('moonBetsList').innerHTML = ''
-  document.getElementById('sunBetsList').innerHTML = ''
-  document.getElementById('starBetsList').innerHTML = ''
-  moonBets = []
-  sunBets = []
-  starBets = []
-  updateTotals()
-})
+  window.selectBet = function(type) {
+    const amount = parseFloat(document.getElementById('betAmount').value)
 
-socket.on('roulette:betPlaced', (data) => {
-  console.log('Bet placed:', data)
-  addBetToList(data.type, data.username, data.amount)
-})
-
-socket.on('roulette:betAccepted', (data) => {
-  userCredits = data.credits
-  document.getElementById('userBalance').textContent = userCredits.toFixed(2)
-})
-
-socket.on('roulette:spin', (data) => {
-  console.log('Spinning to:', data.winningSymbol)
-  roundInProgress = true
-  document.getElementById('rollingText').style.display = 'block'
-  animateReel(data.winningSymbol)
-})
-
-socket.on('roulette:result', (data) => {
-  console.log('Round result:', data)
-  document.getElementById('rollingText').style.display = 'none'
-  
-  // Update history
-  lastResults = data.history
-  updateStats()
-  
-  // Find my result
-  const myResult = data.results.find(r => r.userId === userId)
-  if (myResult) {
-    userCredits = myResult.credits
-    document.getElementById('userBalance').textContent = userCredits.toFixed(2)
-    
-    const popup = document.getElementById('resultPopup')
-    if (myResult.totalWinnings > 0) {
-      popup.textContent = `🎉 You won ${myResult.totalWinnings.toFixed(2)} Brap Coins!`
-      popup.className = 'result-popup win show'
-    } else {
-      popup.textContent = `😢 Better luck next time!`
-      popup.className = 'result-popup loss show'
+    if (!amount || amount <= 0) {
+      alert('Enter a valid bet amount')
+      return
     }
-    
-    setTimeout(() => {
-      popup.classList.remove('show')
-    }, 3000)
-  }
-})
 
-socket.on('roulette:error', (data) => {
-  alert(data.message)
-})
-
-// Generate initial reel with looping animation
-function generateReel() {
-  const container = document.getElementById('reelContainer')
-  const symbols = []
-  
-  // Create repeating symbols for seamless loop (40 total)
-  for (let i = 0; i < 40; i++) {
-    const symbol = i % 2 === 0 ? '🌙' : '⭐'
-    symbols.push(`
-      <div class="reel-slot ${symbol === '🌙' ? 'moon' : 'star'}">
-        ${symbol}
-      </div>
-    `)
-  }
-  
-  container.innerHTML = symbols.join('')
-  container.classList.remove('stopping')
-  container.classList.add('looping')
-}
-
-// Animate reel spinning
-function animateReel(finalSymbol) {
-  const container = document.getElementById('reelContainer')
-  
-  // Stop the loop, create final strip
-  container.classList.remove('looping')
-  
-  const symbols = []
-  
-  // 100 random symbols
-  for (let i = 0; i < 100; i++) {
-    const symbol = Math.random() > 0.5 ? '🌙' : '⭐'
-    symbols.push(`
-      <div class="reel-slot ${symbol === '🌙' ? 'moon' : 'star'}">
-        ${symbol}
-      </div>
-    `)
-  }
-  
-  // Add ONE winning symbol at position 100
-  symbols.push(`
-    <div class="reel-slot ${finalSymbol === '🌙' ? 'moon' : 'star'}">
-      ${finalSymbol}
-    </div>
-  `)
-  
-  // Add 20 more random symbols AFTER the winner for smooth ending
-  for (let i = 0; i < 20; i++) {
-    const symbol = Math.random() > 0.5 ? '🌙' : '⭐'
-    symbols.push(`
-      <div class="reel-slot ${symbol === '🌙' ? 'moon' : 'star'}">
-        ${symbol}
-      </div>
-    `)
-  }
-  
-  container.innerHTML = symbols.join('')
-  
-  // Start stopping animation
-  setTimeout(() => {
-    container.classList.add('stopping')
-  }, 50)
-}
-
-// Start timer countdown
-function startTimer() {
-  timer = 10.00
-  canBet = true
-  activeBets = []
-  
-  // Clear all bet lists
-  document.getElementById('moonBetsList').innerHTML = ''
-  document.getElementById('sunBetsList').innerHTML = ''
-  document.getElementById('starBetsList').innerHTML = ''
-  
-  moonBets = []
-  sunBets = []
-  starBets = []
-  
-  updateTotals()
-  
-  if (timerInterval) clearInterval(timerInterval)
-  
-  timerInterval = setInterval(() => {
-    timer -= 0.01
-    
-    if (timer <= 0) {
-      timer = 0
-      canBet = false
-      clearInterval(timerInterval)
-      // Execute all active bets
-      if (activeBets.length > 0) {
-        executeBets()
-      } else {
-        setTimeout(() => startTimer(), 2000)
-      }
+    if (amount > gameCredits) {
+      alert('Insufficient credits')
+      return
     }
-    document.getElementById('timerValue').textContent = Math.max(0, timer).toFixed(2)
-  }, 10)
-}
 
-// Execute all bets when timer hits 0
-async function executeBets() {
-  roundInProgress = true
-  document.getElementById('rollingText').style.display = 'block'
-  
-  // Process all bets
-  let totalWinnings = 0
-  let wonAnyBet = false
-  let resultSymbol = '🌙'
-  
-  try {
-    // Make API call to get the winning symbol
-    const firstBet = activeBets[0]
-    const res = await fetch('/games/roulette', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        betAmount: firstBet.amount, 
-        betType: firstBet.betType, 
-        betValue: firstBet.betValue 
-      })
+    socket.emit('roulette:placeBet', {
+      userId: gameUserId,
+      username: gameUsername,
+      type: type,
+      amount: amount
     })
-    
-    const data = await res.json()
-    console.log('Response:', data)
-    
-    if (data.success) {
-      // Determine result symbol from first bet
-      if (data.result === 'win') {
-        resultSymbol = firstBet.type === 'moon' ? '🌙' : firstBet.type === 'sun' ? '☀️' : '⭐'
-      } else {
-        resultSymbol = firstBet.type === 'moon' ? '⭐' : '🌙'
-      }
-      
-      // Now check ALL bets against the winning symbol
-      for (const bet of activeBets) {
-        let betWon = false
-        let betWinAmount = 0
-        
-        if (bet.type === 'moon' && resultSymbol === '🌙') {
-          betWon = true
-          betWinAmount = bet.amount * 2
-        } else if (bet.type === 'star' && resultSymbol === '⭐') {
-          betWon = true
-          betWinAmount = bet.amount * 2
-        } else if (bet.type === 'sun' && resultSymbol === '☀️') {
-          betWon = true
-          betWinAmount = bet.amount * 14
-        }
-        
-        if (betWon) {
-          totalWinnings += betWinAmount
-          wonAnyBet = true
-        }
-      }
-      
-      // Update user credits
-      userCredits += totalWinnings
-      document.getElementById('userBalance').textContent = userCredits.toFixed(2)
-      
-      // Animate reel
-      animateReel(resultSymbol)
-      
-      // Wait for stopping animation to complete (3 seconds) before showing result
-      setTimeout(() => {
-        document.getElementById('rollingText').style.display = 'none'
-        
-        // Add result to history and update stats
-        lastResults.push(resultSymbol)
-        if (lastResults.length > 100) {
-          lastResults.shift()
-        }
-        updateStats()
-        
-        const popup = document.getElementById('resultPopup')
-        if (wonAnyBet) {
-          popup.textContent = `🎉 You won ${totalWinnings.toFixed(2)} Brap Coins!`
-          popup.className = 'result-popup win show'
-        } else {
-          const totalBet = activeBets.reduce((sum, bet) => sum + bet.amount, 0)
-          popup.textContent = `😢 You lost ${totalBet.toFixed(2)} Brap Coins`
-          popup.className = 'result-popup loss show'
-        }
-        
-        setTimeout(() => {
-          popup.classList.remove('show')
-          roundInProgress = false
-          generateReel()
-          startTimer()
-        }, 3000)
-        
-        socket.emit('game:result', {
-          username,
-          gameType: 'roulette',
-          result: wonAnyBet ? 'win' : 'loss',
-          amount: wonAnyBet ? totalWinnings : activeBets.reduce((sum, bet) => sum + bet.amount, 0)
-        })
-      }, 3200)
-    } else {
-      document.getElementById('rollingText').style.display = 'none'
-      alert(data.error || 'Bet failed')
-      roundInProgress = false
-      startTimer()
-    }
-  } catch (error) {
-    console.error('Bet error:', error)
-    document.getElementById('rollingText').style.display = 'none'
-    alert('Network error. Please try again.')
-    roundInProgress = false
-    startTimer()
-  }
-}
-
-function clearBet() {
-  document.getElementById('betAmount').value = ''
-}
-
-function adjustBet(amount) {
-  const input = document.getElementById('betAmount')
-  const current = parseFloat(input.value) || 0
-  input.value = Math.max(0.01, current + amount).toFixed(2)
-}
-
-function halfBet() {
-  const input = document.getElementById('betAmount')
-  const current = parseFloat(input.value) || 0
-  input.value = Math.max(0.01, current / 2).toFixed(2)
-}
-
-function doubleBet() {
-  const input = document.getElementById('betAmount')
-  const current = parseFloat(input.value) || 0
-  input.value = (current * 2).toFixed(2)
-}
-
-function maxBet() {
-  document.getElementById('betAmount').value = userCredits.toFixed(2)
-}
-
-function selectBet(type) {
-  if (!canBet || roundInProgress) {
-    alert('Betting closed for this round')
-    return
   }
 
-  const betAmount = parseFloat(document.getElementById('betAmount').value)
-  if (!betAmount || betAmount <= 0) {
-    alert('Please enter a valid bet amount')
-    return
+  function updateBalance(amount) {
+    gameCredits = amount
+    document.getElementById('userBalance').textContent = gameCredits.toFixed(2)
   }
 
-  if (betAmount > userCredits) {
-    alert('Insufficient credits')
-    return
+  function updateStats() {
+    document.getElementById('moonCount').textContent = lastResults.filter(r => r === '🌙').length
+    document.getElementById('sunCount').textContent = lastResults.filter(r => r === '☀️').length
+    document.getElementById('starCount').textContent = lastResults.filter(r => r === '⭐').length
   }
 
-  // Send bet to server via socket
-  socket.emit('roulette:placeBet', {
-    userId,
-    username,
-    type,
-    amount: betAmount
+  function clearBetsUI() {
+    moonBets = []
+    sunBets = []
+    starBets = []
+    document.getElementById('moonBetsList').innerHTML = ''
+    document.getElementById('sunBetsList').innerHTML = ''
+    document.getElementById('starBetsList').innerHTML = ''
+    updateTotals()
+  }
+
+  socket.on('roulette:init', (data) => {
+    lastResults = data.history || []
+    updateStats()
+    generateReel()
   })
 
-    if (typeof emitBetPlaced === 'function') {
-    emitBetPlaced(betAmount)
+  socket.on('roulette:timerUpdate', (data) => {
+    document.getElementById('timerValue').textContent = data.timer
+  })
+
+  socket.on('roulette:roundStarted', () => {
+    // New round started
+  })
+
+  socket.on('roulette:clearBets', () => {
+    clearBetsUI()
+  })
+
+  socket.on('roulette:betPlaced', (data) => {
+    addBetToList(data.type, data.username, data.amount)
+  })
+
+  socket.on('roulette:betAccepted', (data) => {
+    updateBalance(data.credits)
+  })
+
+  socket.on('roulette:spin', (data) => {
+    document.getElementById('rollingText').style.display = 'block'
+    animateReel(data.winningSymbol)
+  })
+
+  socket.on('roulette:result', (data) => {
+    document.getElementById('rollingText').style.display = 'none'
+    lastResults = data.history || []
+    updateStats()
+
+    const myResult = data.results.find(r => r.userId === gameUserId)
+    if (!myResult) return
+
+    updateBalance(myResult.credits)
+
+    const popup = document.getElementById('resultPopup')
+    if (myResult.totalWinnings > 0) {
+      popup.textContent = `🎉 You won ${myResult.totalWinnings.toFixed(2)} credits!`
+      popup.className = 'result-popup win show'
+    } else {
+      popup.textContent = '😢 Better luck next time!'
+      popup.className = 'result-popup loss show'
+    }
+
+    setTimeout(() => popup.classList.remove('show'), 3000)
+  })
+
+  socket.on('roulette:error', (data) => {
+    alert(data.message)
+  })
+
+  function generateReel() {
+    const container = document.getElementById('reelContainer')
+    const symbols = []
+    
+    for (let i = 0; i < 40; i++) {
+      const rand = Math.random()
+      let symbol
+      if (rand < 0.45) symbol = '🌙'
+      else if (rand < 0.90) symbol = '⭐'
+      else symbol = '☀️'
+      
+      const className = symbol === '🌙' ? 'moon' : (symbol === '☀️' ? 'sun' : 'star')
+      symbols.push(`<div class="reel-slot ${className}">${symbol}</div>`)
+    }
+    
+    container.innerHTML = symbols.join('')
+    container.classList.add('looping')
   }
 
-}
+  function animateReel(finalSymbol) {
+    const container = document.getElementById('reelContainer')
+    container.classList.remove('looping')
+    container.classList.remove('stopping')
+    
+    const symbols = []
+    
+    for (let i = 0; i < 100; i++) {
+      const rand = Math.random()
+      let symbol
+      if (rand < 0.45) symbol = '🌙'
+      else if (rand < 0.90) symbol = '⭐'
+      else symbol = '☀️'
+      
+      const className = symbol === '🌙' ? 'moon' : (symbol === '☀️' ? 'sun' : 'star')
+      symbols.push(`<div class="reel-slot ${className}">${symbol}</div>`)
+    }
+    
+    const winClass = finalSymbol === '🌙' ? 'moon' : (finalSymbol === '☀️' ? 'sun' : 'star')
+    symbols.push(`<div class="reel-slot ${winClass}">${finalSymbol}</div>`)
+    
+    for (let i = 0; i < 20; i++) {
+      const rand = Math.random()
+      let symbol
+      if (rand < 0.45) symbol = '🌙'
+      else if (rand < 0.90) symbol = '⭐'
+      else symbol = '☀️'
+      
+      const className = symbol === '🌙' ? 'moon' : (symbol === '☀️' ? 'sun' : 'star')
+      symbols.push(`<div class="reel-slot ${className}">${symbol}</div>`)
+    }
+    
+    container.innerHTML = symbols.join('')
+    setTimeout(() => container.classList.add('stopping'), 50)
+  }
 
-// Initialize
-document.getElementById('rollingText').style.display = 'none'
-updateStats() // Set all stats to 0 initially
-generateReel()
-// Timer is now controlled by server via sockets
+  function addBetToList(type, user, amount) {
+    const list = document.getElementById(type + 'BetsList')
+    const icon = type === 'moon' ? '🌙' : (type === 'sun' ? '☀️' : '⭐')
+    
+    list.insertAdjacentHTML('afterbegin', `
+      <div class="bet-item">
+        <div class="bet-item-icon ${type}-icon">${icon}</div>
+        <span class="bet-item-user">${user}</span>
+        <span class="bet-item-amount">${amount.toFixed(2)}</span>
+      </div>
+    `)
+    
+    if (type === 'moon') moonBets.push(amount)
+    else if (type === 'sun') sunBets.push(amount)
+    else starBets.push(amount)
+    
+    updateTotals()
+  }
 
-function addBetToList(type, user, amount) {
-  const betItem = `
-    <div class="bet-item">
-      <div class="bet-item-icon ${type}-icon">${type === 'moon' ? '🌙' : type === 'sun' ? '☀️' : '⭐'}</div>
-      <span class="bet-item-user">${user}</span>
-      <span class="bet-item-amount">${amount.toFixed(2)}</span>
-    </div>
-  `
-  
-  const listId = type + 'BetsList'
-  const list = document.getElementById(listId)
-  list.insertAdjacentHTML('afterbegin', betItem)
-  
-  // Update totals
-  if (type === 'moon') moonBets.push(amount)
-  else if (type === 'sun') sunBets.push(amount)
-  else starBets.push(amount)
-  
-  updateTotals()
-}
+  function updateTotals() {
+    document.getElementById('moonBetsCount').textContent = `${moonBets.length} Bets Total`
+    document.getElementById('sunBetsCount').textContent = `${sunBets.length} Bets Total`
+    document.getElementById('starBetsCount').textContent = `${starBets.length} Bets Total`
+    
+    document.getElementById('moonBetsTotal').textContent = moonBets.reduce((a, b) => a + b, 0).toFixed(2)
+    document.getElementById('sunBetsTotal').textContent = sunBets.reduce((a, b) => a + b, 0).toFixed(2)
+    document.getElementById('starBetsTotal').textContent = starBets.reduce((a, b) => a + b, 0).toFixed(2)
+  }
 
-function updateTotals() {
-  const moonTotal = moonBets.reduce((a, b) => a + b, 0)
-  const sunTotal = sunBets.reduce((a, b) => a + b, 0)
-  const starTotal = starBets.reduce((a, b) => a + b, 0)
-  
-  document.getElementById('moonBetsCount').textContent = `${moonBets.length} Bets Total`
-  document.getElementById('sunBetsCount').textContent = `${sunBets.length} Bets Total`
-  document.getElementById('starBetsCount').textContent = `${starBets.length} Bets Total`
-  
-  document.getElementById('moonBetsTotal').textContent = moonTotal.toFixed(2)
-  document.getElementById('sunBetsTotal').textContent = sunTotal.toFixed(2)
-  document.getElementById('starBetsTotal').textContent = starTotal.toFixed(2)
-}
-
-// Initialize
-document.getElementById('rollingText').style.display = 'none'
+  // Init
+  document.getElementById('rollingText').style.display = 'none'
+  generateReel()
+  updateStats()
+})();
 </script>
+
 
 <%- include('../partials/footer') %>

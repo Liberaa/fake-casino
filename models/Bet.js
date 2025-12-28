@@ -12,7 +12,8 @@ const betSchema = new mongoose.Schema({
   },
   amount: {
     type: Number,
-    required: true
+    required: true,
+    min: 1
   },
   status: {
     type: String,
@@ -23,10 +24,20 @@ const betSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  verificationHash: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  completedAt: {
+    type: Date
   }
 })
+
+// Add index for performance
+betSchema.index({ player1: 1, status: 1 })
+betSchema.index({ player2: 1, status: 1 })
 
 module.exports = mongoose.model('Bet', betSchema)
