@@ -8,7 +8,7 @@ const gameSchema = new mongoose.Schema({
   },
   gameType: {
     type: String,
-    enum: ['slots', 'roulette', 'blackjack', 'dice'],
+    enum: ['slots', 'roulette', 'blackjack', 'dice', 'craps', 'mines'], // Add craps and mines here
     required: true
   },
   betAmount: {

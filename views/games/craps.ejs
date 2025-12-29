@@ -30,6 +30,7 @@
   font-size: 1.1rem;
   color: #ffd700;
   border: 2px solid #ffd700;
+  margin: 0 10px;
 }
 
 /* Actual Craps Table Layout */
@@ -38,6 +39,8 @@
   padding: 10px;
   border-radius: 20px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
 }
 
 .craps-table {
@@ -47,7 +50,7 @@
   position: relative;
   display: grid;
   grid-template-columns: 150px 1fr 150px;
-  min-height: 400px;
+  min-height: 500px;
 }
 
 /* Don't Pass Bar */
@@ -66,7 +69,7 @@
   background: #0f6d0f;
 }
 
-.dont-pass-bar.selected {
+.dont-pass-bar.has-bet {
   background: #1a7a1a;
   box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.3);
 }
@@ -78,12 +81,14 @@
   text-orientation: mixed;
   font-size: 1.2rem;
   letter-spacing: 3px;
+  pointer-events: none;
 }
 
 /* Center Playing Area */
 .center-area {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 /* Numbers Box Area */
@@ -111,21 +116,23 @@
   background: #0f6d0f;
 }
 
-.point-box.active {
+.point-box.has-bet {
   background: #1a7a1a;
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
 }
 
 .point-box .number {
   font-size: 2rem;
   font-weight: bold;
   color: #fff;
+  pointer-events: none;
 }
 
 .point-box .odds {
   font-size: 0.8rem;
   color: #ffd700;
   margin-top: 5px;
+  pointer-events: none;
 }
 
 .point-marker {
@@ -140,6 +147,7 @@
   font-weight: bold;
   font-size: 0.8rem;
   display: none;
+  z-index: 10;
 }
 
 .point-box.point .point-marker {
@@ -161,7 +169,7 @@
   background: #0f6d0f;
 }
 
-.come-area.selected {
+.come-area.has-bet {
   background: #1a7a1a;
 }
 
@@ -170,6 +178,34 @@
   font-size: 1.5rem;
   margin: 0;
   letter-spacing: 3px;
+  pointer-events: none;
+}
+
+/* Don't Come Area */
+.dont-come-area {
+  background: #0d5a0d;
+  border-bottom: 2px solid #ffd700;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.dont-come-area:hover {
+  background: #0f6d0f;
+}
+
+.dont-come-area.has-bet {
+  background: #1a7a1a;
+}
+
+.dont-come-area h3 {
+  color: #fff;
+  font-size: 1.2rem;
+  margin: 0;
+  letter-spacing: 2px;
+  pointer-events: none;
 }
 
 /* Field Area */
@@ -179,13 +215,14 @@
   padding: 20px;
   cursor: pointer;
   transition: all 0.3s;
+  position: relative;
 }
 
 .field-area:hover {
   background: #0f6d0f;
 }
 
-.field-area.selected {
+.field-area.has-bet {
   background: #1a7a1a;
 }
 
@@ -195,6 +232,7 @@
   margin: 0 0 10px 0;
   font-size: 1.3rem;
   letter-spacing: 2px;
+  pointer-events: none;
 }
 
 .field-numbers {
@@ -202,6 +240,7 @@
   justify-content: center;
   gap: 15px;
   flex-wrap: wrap;
+  pointer-events: none;
 }
 
 .field-numbers span {
@@ -215,6 +254,10 @@
 
 .field-numbers span.double {
   background: #8b0000;
+}
+
+.field-numbers span.triple {
+  background: #4b0082;
 }
 
 /* Pass Line */
@@ -231,7 +274,7 @@
   background: #0f6d0f;
 }
 
-.pass-line.selected {
+.pass-line.has-bet {
   background: #1a7a1a;
   box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.3);
 }
@@ -241,6 +284,7 @@
   font-size: 1.5rem;
   margin: 0;
   letter-spacing: 3px;
+  pointer-events: none;
 }
 
 /* Propositions */
@@ -248,7 +292,7 @@
   background: #0d5a0d;
   border-left: 2px solid #ffd700;
   display: grid;
-  grid-template-rows: repeat(4, 1fr);
+  grid-template-rows: repeat(auto-fit, minmax(60px, 1fr));
   gap: 2px;
 }
 
@@ -262,77 +306,391 @@
   cursor: pointer;
   transition: all 0.3s;
   padding: 10px;
+  position: relative;
 }
 
 .prop-bet:hover {
   background: #0f6d0f;
 }
 
-.prop-bet.selected {
+.prop-bet.has-bet {
   background: #1a7a1a;
 }
 
 .prop-bet h4 {
   color: #ffd700;
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  pointer-events: none;
 }
 
 .prop-bet span {
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   margin-top: 5px;
+  pointer-events: none;
 }
 
-/* Dice Display Area */
-.dice-display-area {
+/* Enhanced Dice Rolling System */
+.dice-roll-area {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.8);
-  padding: 20px;
-  border-radius: 15px;
-  border: 3px solid #ffd700;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 100;
   display: none;
-  z-index: 10;
+  perspective: 1000px;
 }
 
-.dice-display-area.active {
+.dice-roll-area.active {
   display: block;
 }
 
-.dice-result {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-  margin-bottom: 10px;
+/* 3D Die Container - INCREASED SIZE */
+.die-container {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  transform-style: preserve-3d;
 }
 
-.die-result {
-  width: 60px;
-  height: 60px;
-  background: #fff;
-  border-radius: 8px;
+.die-cube {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transform-origin: center center;
+}
+
+/* Die Faces with Proper Dots - LARGER DICE */
+.die-face {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  background: linear-gradient(145deg, #ffffff 0%, #f5f5f5 100%);
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  display: grid;
+  padding: 10px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+  backface-visibility: hidden;
+}
+
+/* Dot Styling - BIGGER DOTS */
+.dot {
+  width: 12px;
+  height: 12px;
+  background: #333;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Face positions adjusted for 70px cube */
+.die-face.face-1 {
   display: flex;
+  justify-content: center;
   align-items: center;
-  justify-content: center;
-  font-size: 2.5rem;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-  animation: diceRoll 0.5s ease-out;
+  transform: rotateY(0deg) translateZ(35px);
 }
 
-@keyframes diceRoll {
-  0% { transform: rotate(0deg) scale(0); }
-  50% { transform: rotate(180deg) scale(1.2); }
-  100% { transform: rotate(360deg) scale(1); }
+.die-face.face-2 {
+  display: flex;
+  justify-content: space-between;
+  transform: rotateY(90deg) translateZ(35px);
+}
+.die-face.face-2 .dot:first-child {
+  align-self: flex-start;
+}
+.die-face.face-2 .dot:last-child {
+  align-self: flex-end;
 }
 
-.dice-total {
-  text-align: center;
-  font-size: 1.5rem;
+.die-face.face-3 {
+  display: flex;
+  justify-content: space-between;
+  transform: rotateX(90deg) translateZ(35px);
+}
+.die-face.face-3 .dot:nth-child(1) {
+  align-self: flex-start;
+}
+.die-face.face-3 .dot:nth-child(2) {
+  align-self: center;
+}
+.die-face.face-3 .dot:nth-child(3) {
+  align-self: flex-end;
+}
+
+.die-face.face-4 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 18px;
+  transform: rotateX(-90deg) translateZ(35px);
+}
+
+.die-face.face-5 {
+  display: grid;
+  grid-template-areas: 
+    "a . b"
+    ". c ."
+    "d . e";
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  transform: rotateY(-90deg) translateZ(35px);
+}
+.die-face.face-5 .dot:nth-child(1) { grid-area: a; }
+.die-face.face-5 .dot:nth-child(2) { grid-area: b; }
+.die-face.face-5 .dot:nth-child(3) { grid-area: c; }
+.die-face.face-5 .dot:nth-child(4) { grid-area: d; }
+.die-face.face-5 .dot:nth-child(5) { grid-area: e; }
+
+.die-face.face-6 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 10px;
+  transform: rotateY(180deg) translateZ(35px);
+}
+
+/* SEPARATED DICE ANIMATIONS - MORE SPACE BETWEEN THEM */
+@keyframes diceThrow1 {
+  0% {
+    left: 82%;
+    top: 10%;
+    transform: scale(0.6) rotate3d(1, 1, 1, 0deg);
+  }
+  5% {
+    left: 72%;
+    top: 5%;
+    transform: scale(0.8) rotate3d(1, 1, 1, 180deg);
+  }
+  10% {
+    left: 62%;
+    top: 15%;
+    transform: scale(1) rotate3d(1, 0, 1, 360deg);
+  }
+  15% {
+    left: 52%;
+    top: 28%;
+    transform: scale(1.1) rotate3d(0, 1, 1, 540deg);
+  }
+  20% {
+    left: 42%;
+    top: 35%;
+    transform: scale(1) rotate3d(1, 1, 0, 720deg);
+  }
+  25% {
+    left: 35%;
+    top: 38%;
+    transform: scale(1) rotate3d(1, 0, 0, 900deg);
+  }
+  30% {
+    left: 30%;
+    top: 40%;
+    transform: scale(1) rotate3d(0, 1, 0, 1080deg);
+  }
+  35% {
+    left: 26%;
+    top: 38%;
+    transform: scale(1) rotate3d(1, 1, 1, 1260deg);
+  }
+  40% {
+    left: 23%;
+    top: 36%;
+    transform: scale(1) rotate3d(0, 0, 1, 1440deg);
+  }
+  45% {
+    left: 21%;
+    top: 35%;
+    transform: scale(1) rotate3d(1, 0, 1, 1620deg);
+  }
+  50% {
+    left: 19%;
+    top: 34%;
+    transform: scale(1) rotate3d(0, 1, 1, 1800deg);
+  }
+  55% {
+    left: 18%;
+    top: 33%;
+    transform: scale(1) rotate3d(1, 1, 0, 1980deg);
+  }
+  60% {
+    left: 17%;
+    top: 32.5%;
+    transform: scale(1) rotate3d(1, 0, 0, 2160deg);
+  }
+  70% {
+    left: 16.5%;
+    top: 32%;
+    transform: scale(1) rotate3d(0, 1, 0, 2340deg);
+  }
+  80% {
+    left: 16%;
+    top: 32%;
+    transform: scale(1) rotate3d(1, 1, 1, 2520deg);
+  }
+  90% {
+    left: 15.5%;
+    top: 32%;
+    transform: scale(1) rotate3d(1, 0, 1, 2700deg);
+  }
+  100% {
+    left: 15%;
+    top: 32%;
+    transform: scale(1) rotate3d(0, 0, 0, 0deg);
+  }
+}
+
+@keyframes diceThrow2 {
+  0% {
+    left: 88%;
+    top: 15%;
+    transform: scale(0.6) rotate3d(0, 1, 1, 0deg);
+  }
+  5% {
+    left: 78%;
+    top: 12%;
+    transform: scale(0.8) rotate3d(1, 0, 1, 200deg);
+  }
+  10% {
+    left: 68%;
+    top: 22%;
+    transform: scale(1) rotate3d(1, 1, 0, 400deg);
+  }
+  15% {
+    left: 58%;
+    top: 38%;
+    transform: scale(1.1) rotate3d(0, 0, 1, 600deg);
+  }
+  20% {
+    left: 48%;
+    top: 48%;
+    transform: scale(1) rotate3d(1, 1, 1, 800deg);
+  }
+  25% {
+    left: 40%;
+    top: 52%;
+    transform: scale(1) rotate3d(0, 1, 0, 1000deg);
+  }
+  30% {
+    left: 34%;
+    top: 55%;
+    transform: scale(1) rotate3d(1, 0, 0, 1200deg);
+  }
+  35% {
+    left: 29%;
+    top: 56%;
+    transform: scale(1) rotate3d(1, 0, 1, 1400deg);
+  }
+  40% {
+    left: 25%;
+    top: 55%;
+    transform: scale(1) rotate3d(0, 1, 1, 1600deg);
+  }
+  45% {
+    left: 22%;
+    top: 53%;
+    transform: scale(1) rotate3d(1, 1, 0, 1800deg);
+  }
+  50% {
+    left: 20%;
+    top: 51%;
+    transform: scale(1) rotate3d(0, 0, 1, 2000deg);
+  }
+  55% {
+    left: 18.5%;
+    top: 49%;
+    transform: scale(1) rotate3d(1, 1, 1, 2200deg);
+  }
+  60% {
+    left: 17.5%;
+    top: 48%;
+    transform: scale(1) rotate3d(0, 1, 0, 2400deg);
+  }
+  70% {
+    left: 16.5%;
+    top: 47%;
+    transform: scale(1) rotate3d(1, 0, 0, 2600deg);
+  }
+  80% {
+    left: 16%;
+    top: 46%;
+    transform: scale(1) rotate3d(1, 0, 1, 2800deg);
+  }
+  90% {
+    left: 15.5%;
+    top: 45.5%;
+    transform: scale(1) rotate3d(0, 1, 1, 3000deg);
+  }
+  100% {
+    left: 15%;
+    top: 45%;
+    transform: scale(1) rotate3d(0, 0, 0, 0deg);
+  }
+}
+
+.die-container.rolling-die-1 {
+  animation: diceThrow1 2.5s cubic-bezier(.17,.67,.4,.98) forwards;
+}
+
+.die-container.rolling-die-2 {
+  animation: diceThrow2 2.5s cubic-bezier(.17,.67,.4,.98) forwards;
+}
+
+/* Faster, smoother cube rotation during throw */
+@keyframes cubeRotate {
+  from {
+    transform: rotateX(0) rotateY(0);
+  }
+  to {
+    transform: rotateX(4320deg) rotateY(3960deg);
+  }
+}
+
+.die-cube.spinning {
+  animation: cubeRotate 2.5s cubic-bezier(.17,.67,.83,.67);
+}
+
+/* Result overlay */
+.dice-result-overlay {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.95);
+  padding: 20px 50px;
+  border-radius: 15px;
+  border: 3px solid #ffd700;
+  display: none;
+  z-index: 101;
+  box-shadow: 0 5px 25px rgba(255, 215, 0, 0.4);
+}
+
+.dice-result-overlay.show {
+  display: block;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.dice-result-overlay .total {
   color: #ffd700;
+  font-size: 2rem;
   font-weight: bold;
+  text-align: center;
+  text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+  letter-spacing: 2px;
 }
 
 /* Control Panel */
@@ -341,11 +699,15 @@
   padding: 1.5rem;
   border-radius: 10px;
   margin-top: 1.5rem;
+}
+
+.betting-controls {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 2rem;
   flex-wrap: wrap;
+  margin-bottom: 1rem;
 }
 
 .bet-amount-control {
@@ -372,19 +734,49 @@
   font-weight: bold;
 }
 
-.roll-button {
+.quick-bet-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.quick-bet-btn {
+  background: #444;
+  color: #ffd700;
+  border: 1px solid #ffd700;
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.quick-bet-btn:hover {
+  background: #555;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.roll-button, .clear-button {
   background: #dc2626;
   color: #fff;
   border: none;
-  padding: 12px 40px;
+  padding: 12px 30px;
   border-radius: 25px;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: bold;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   cursor: pointer;
   transition: all 0.3s;
   box-shadow: 0 5px 15px rgba(220, 38, 38, 0.4);
+}
+
+.clear-button {
+  background: #666;
+  box-shadow: 0 5px 15px rgba(102, 102, 102, 0.4);
 }
 
 .roll-button:hover {
@@ -393,7 +785,12 @@
   box-shadow: 0 7px 20px rgba(220, 38, 38, 0.6);
 }
 
-.roll-button:disabled {
+.clear-button:hover {
+  background: #777;
+  transform: translateY(-2px);
+}
+
+.roll-button:disabled, .clear-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -413,6 +810,23 @@
   text-transform: uppercase;
   letter-spacing: 2px;
   margin-bottom: 0.5rem;
+}
+
+.active-bets {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+.active-bet-item {
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid #ffd700;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 0.9rem;
 }
 
 .result-message {
@@ -438,7 +852,14 @@
   display: block;
 }
 
-/* Chip on bet area */
+.result-message.mixed {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  border: 2px solid #fbbf24;
+  display: block;
+}
+
+/* Chip Display */
 .bet-chip {
   position: absolute;
   top: 50%;
@@ -453,12 +874,19 @@
   justify-content: center;
   color: #fff;
   font-weight: bold;
+  font-size: 0.8rem;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
   border: 3px dashed #fff;
+  pointer-events: none;
+  z-index: 5;
 }
 
-.selected .bet-chip {
-  display: flex;
+.has-bet .bet-chip {
+  display: flex !important;
+}
+
+.bet-chip.multiple {
+  background: radial-gradient(circle, #0000ff, #000080);
 }
 
 @media (max-width: 768px) {
@@ -473,295 +901,543 @@
   .numbers-area {
     grid-template-columns: repeat(3, 1fr);
   }
+  
+  .betting-controls {
+    flex-direction: column;
+  }
 }
 </style>
 
 <div class="craps-container">
   <div class="craps-header">
-    <h1>🎲 CRAPS TABLE</h1>
-    <div class="balance-display">
-      Balance: $<span id="credits"><%= user.credits.toFixed(2) %></span>
+    <h1>🎲 CRAPS TABLE 🎲</h1>
+    <div style="display: flex; justify-content: center; align-items: center;">
+      <div class="balance-display">
+        Balance: $<span id="credits"><%= user.credits.toFixed(2) %></span>
+      </div>
+      <div class="balance-display">
+        Total Bet: $<span id="totalBet">0.00</span>
+      </div>
     </div>
   </div>
 
   <div class="craps-table-container">
     <div class="craps-table">
       <!-- Don't Pass Bar -->
-      <div class="dont-pass-bar" onclick="selectBet('dontPass')">
+      <div class="dont-pass-bar" data-bet="dontPass">
         <span>DON'T PASS BAR</span>
-        <div class="bet-chip" id="dontPassChip"></div>
+        <div class="bet-chip"></div>
       </div>
 
       <!-- Center Area -->
       <div class="center-area">
+        <!-- Dice Rolling Area -->
+        <div class="dice-roll-area" id="diceRollArea">
+          <!-- Die 1 -->
+          <div class="die-container" id="die1Container">
+            <div class="die-cube" id="die1">
+              <div class="die-face face-1">
+                <div class="dot"></div>
+              </div>
+              <div class="die-face face-2">
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+              <div class="die-face face-3">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+              <div class="die-face face-4">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+              <div class="die-face face-5">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+              <div class="die-face face-6">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Die 2 -->
+          <div class="die-container" id="die2Container">
+            <div class="die-cube" id="die2">
+              <div class="die-face face-1">
+                <div class="dot"></div>
+              </div>
+              <div class="die-face face-2">
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+              <div class="die-face face-3">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+              <div class="die-face face-4">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+              <div class="die-face face-5">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+              <div class="die-face face-6">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="dice-result-overlay" id="diceResult">
+            <div class="total">Total: <span id="diceTotal">0</span></div>
+          </div>
+        </div>
+
         <!-- Point Numbers -->
         <div class="numbers-area">
-          <div class="point-box" data-number="4">
+          <div class="point-box" data-bet="place4" data-number="4">
             <div class="point-marker">ON</div>
             <div class="number">4</div>
             <div class="odds">9:5</div>
+            <div class="bet-chip"></div>
           </div>
-          <div class="point-box" data-number="5">
+          <div class="point-box" data-bet="place5" data-number="5">
             <div class="point-marker">ON</div>
             <div class="number">5</div>
             <div class="odds">7:5</div>
+            <div class="bet-chip"></div>
           </div>
-          <div class="point-box" data-number="6">
+          <div class="point-box" data-bet="place6" data-number="6">
             <div class="point-marker">ON</div>
             <div class="number">6</div>
             <div class="odds">7:6</div>
+            <div class="bet-chip"></div>
           </div>
-          <div class="point-box" data-number="8">
+          <div class="point-box" data-bet="place8" data-number="8">
             <div class="point-marker">ON</div>
             <div class="number">8</div>
             <div class="odds">7:6</div>
+            <div class="bet-chip"></div>
           </div>
-          <div class="point-box" data-number="9">
+          <div class="point-box" data-bet="place9" data-number="9">
             <div class="point-marker">ON</div>
             <div class="number">9</div>
             <div class="odds">7:5</div>
+            <div class="bet-chip"></div>
           </div>
-          <div class="point-box" data-number="10">
+          <div class="point-box" data-bet="place10" data-number="10">
             <div class="point-marker">ON</div>
             <div class="number">10</div>
             <div class="odds">9:5</div>
+            <div class="bet-chip"></div>
           </div>
         </div>
 
         <!-- Come Area -->
-        <div class="come-area" onclick="selectBet('come')" style="display: none;">
+        <div class="come-area" data-bet="come">
           <h3>COME</h3>
-          <div class="bet-chip" id="comeChip"></div>
+          <div class="bet-chip"></div>
+        </div>
+
+        <!-- Don't Come Area -->
+        <div class="dont-come-area" data-bet="dontCome">
+          <h3>DON'T COME BAR</h3>
+          <div class="bet-chip"></div>
         </div>
 
         <!-- Field Area -->
-        <div class="field-area" onclick="selectBet('field')">
+        <div class="field-area" data-bet="field">
           <h3>FIELD</h3>
           <div class="field-numbers">
-            <span class="double">2</span>
+            <span class="double">2 (2x)</span>
             <span>3</span>
             <span>4</span>
             <span>9</span>
             <span>10</span>
             <span>11</span>
-            <span class="double">12</span>
+            <span class="double">12 (2x)</span>
           </div>
-          <div class="bet-chip" id="fieldChip"></div>
+          <div class="bet-chip"></div>
         </div>
 
         <!-- Pass Line -->
-        <div class="pass-line" onclick="selectBet('passLine')">
+        <div class="pass-line" data-bet="passLine">
           <h3>PASS LINE</h3>
-          <div class="bet-chip" id="passLineChip"></div>
+          <div class="bet-chip"></div>
         </div>
       </div>
 
       <!-- Proposition Bets -->
       <div class="propositions">
-        <div class="prop-bet" onclick="selectBet('any7')">
+        <div class="prop-bet" data-bet="any7">
           <h4>Any 7</h4>
           <span>4:1</span>
-          <div class="bet-chip" id="any7Chip"></div>
+          <div class="bet-chip"></div>
         </div>
-        <div class="prop-bet" onclick="selectBet('anyCraps')">
+        <div class="prop-bet" data-bet="anyCraps">
           <h4>Any Craps</h4>
           <span>7:1</span>
-          <div class="bet-chip" id="anyCrapsChip"></div>
+          <div class="bet-chip"></div>
         </div>
-        <div class="prop-bet" onclick="selectBet('hard6')">
+        <div class="prop-bet" data-bet="snake">
+          <h4>Snake Eyes</h4>
+          <span>30:1</span>
+          <div class="bet-chip"></div>
+        </div>
+        <div class="prop-bet" data-bet="ace">
+          <h4>Ace Deuce</h4>
+          <span>15:1</span>
+          <div class="bet-chip"></div>
+        </div>
+        <div class="prop-bet" data-bet="yo">
+          <h4>Yo (11)</h4>
+          <span>15:1</span>
+          <div class="bet-chip"></div>
+        </div>
+        <div class="prop-bet" data-bet="boxcars">
+          <h4>Boxcars</h4>
+          <span>30:1</span>
+          <div class="bet-chip"></div>
+        </div>
+        <div class="prop-bet" data-bet="hard4">
+          <h4>Hard 4</h4>
+          <span>7:1</span>
+          <div class="bet-chip"></div>
+        </div>
+        <div class="prop-bet" data-bet="hard6">
           <h4>Hard 6</h4>
           <span>9:1</span>
+          <div class="bet-chip"></div>
         </div>
-        <div class="prop-bet" onclick="selectBet('hard8')">
+        <div class="prop-bet" data-bet="hard8">
           <h4>Hard 8</h4>
           <span>9:1</span>
+          <div class="bet-chip"></div>
+        </div>
+        <div class="prop-bet" data-bet="hard10">
+          <h4>Hard 10</h4>
+          <span>7:1</span>
+          <div class="bet-chip"></div>
         </div>
       </div>
-    </div>
-
-    <!-- Dice Display Overlay -->
-    <div class="dice-display-area" id="diceDisplay">
-      <div class="dice-result">
-        <div class="die-result" id="die1">🎲</div>
-        <div class="die-result" id="die2">🎲</div>
-      </div>
-      <div class="dice-total">Total: <span id="diceTotal">0</span></div>
     </div>
   </div>
 
   <!-- Control Panel -->
   <div class="control-panel">
-    <div class="bet-amount-control">
-      <label>Bet Amount:</label>
-      <input type="number" id="betAmount" value="10" min="1" max="<%= user.credits %>" step="1">
+    <div class="betting-controls">
+      <div class="bet-amount-control">
+        <label>Bet Amount:</label>
+        <input type="number" id="betAmount" value="10" min="1" max="<%= user.credits %>" step="1">
+      </div>
+      <div class="quick-bet-buttons">
+        <button class="quick-bet-btn" onclick="setBetAmount(5)">$5</button>
+        <button class="quick-bet-btn" onclick="setBetAmount(10)">$10</button>
+        <button class="quick-bet-btn" onclick="setBetAmount(25)">$25</button>
+        <button class="quick-bet-btn" onclick="setBetAmount(50)">$50</button>
+        <button class="quick-bet-btn" onclick="setBetAmount(100)">$100</button>
+      </div>
     </div>
-    <button class="roll-button" id="rollBtn" onclick="rollDice()">🎲 ROLL DICE</button>
-    <button class="roll-button" id="newGameBtn" onclick="newGame()" style="display: none;">NEW GAME</button>
+    <div class="action-buttons">
+      <button class="clear-button" id="clearBtn">CLEAR BETS</button>
+      <button class="roll-button" id="rollBtn">🎲 ROLL DICE 🎲</button>
+    </div>
   </div>
 
   <!-- Game Status -->
   <div class="game-status">
     <div class="game-phase" id="gamePhase">Come Out Roll - Place Your Bets</div>
+    <div class="active-bets" id="activeBets"></div>
     <div class="result-message" id="resultMessage"></div>
   </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
+
 <script>
-// [Keep the same JavaScript as before, it works fine]
-(function() {
+/* ---------- DIE ROTATION LOGIC ---------- */
+function getRotationForValue(value) {
+  const rotations = {
+    1: 'rotateX(0deg) rotateY(0deg)',
+    2: 'rotateX(0deg) rotateY(-90deg)',
+    3: 'rotateX(-90deg) rotateY(0deg)',
+    4: 'rotateX(90deg) rotateY(0deg)',
+    5: 'rotateX(0deg) rotateY(90deg)',
+    6: 'rotateX(0deg) rotateY(180deg)'
+  }
+  return rotations[value]
+}
+
+document.addEventListener('DOMContentLoaded', function () {
   const socket = io()
-  const username = '<%= user.username %>'
   let currentCredits = Number('<%= user.credits %>')
-  let selectedBet = null
+  let activeBets = new Map()
   let point = null
   let isRolling = false
 
-  window.selectBet = function(betType) {
-    if (isRolling) return
-    
-    // Clear previous selections
-    document.querySelectorAll('.selected').forEach(el => {
-      el.classList.remove('selected')
-    })
-    
-    // Add selected class
-    if (betType === 'passLine') {
-      document.querySelector('.pass-line').classList.add('selected')
-    } else if (betType === 'dontPass') {
-      document.querySelector('.dont-pass-bar').classList.add('selected')
-    } else if (betType === 'field') {
-      document.querySelector('.field-area').classList.add('selected')
-    } else if (betType === 'come') {
-      document.querySelector('.come-area').classList.add('selected')
-    } else if (betType === 'any7' || betType === 'anyCraps') {
-      document.querySelector(`[onclick="selectBet('${betType}')"]`).classList.add('selected')
+  /* ---------- UPDATE GAME PHASE ---------- */
+  function updateGamePhase() {
+    const phaseElement = document.getElementById('gamePhase')
+    if (!point) {
+      phaseElement.textContent = 'Come Out Roll - Place Your Bets'
+    } else {
+      phaseElement.textContent = `Point is ${point} - Roll to Hit Point or 7 Out`
     }
-    
-    selectedBet = betType
-    
-    // Update chip display
-    document.querySelectorAll('.bet-chip').forEach(chip => {
-      chip.textContent = document.getElementById('betAmount').value
+  }
+
+  /* ---------- BETTING AREAS ---------- */
+  document.querySelectorAll('[data-bet]').forEach(area => {
+    area.addEventListener('click', e => {
+      e.stopPropagation()
+      if (isRolling) return
+      placeBet(area.dataset.bet)
+    })
+  })
+
+  document.getElementById('rollBtn').addEventListener('click', rollDice)
+  document.getElementById('clearBtn').addEventListener('click', clearAllBets)
+
+  window.setBetAmount = amount =>
+    document.getElementById('betAmount').value = amount
+
+  /* ---------- BET LOGIC ---------- */
+  function placeBet(betType) {
+    const betAmount = Number(document.getElementById('betAmount').value)
+    if (betAmount <= 0) return alert('Invalid bet')
+
+    let total = betAmount
+    activeBets.forEach(b => total += b.amount)
+    if (total > currentCredits) return alert('Insufficient credits')
+
+    if (activeBets.has(betType)) {
+      activeBets.get(betType).amount += betAmount
+    } else {
+      activeBets.set(betType, { type: betType, amount: betAmount })
+    }
+
+    updateBetDisplay(betType)
+    updateTotals()
+  }
+
+  function updateBetDisplay(betType) {
+    const area = document.querySelector(`[data-bet="${betType}"]`)
+    const bet = activeBets.get(betType)
+    if (!area) return
+
+    const chip = area.querySelector('.bet-chip')
+    if (bet) {
+      area.classList.add('has-bet')
+      chip.textContent = `$${bet.amount}`
+      chip.classList.toggle('multiple', bet.amount > 100)
+    } else {
+      area.classList.remove('has-bet')
+      chip.textContent = ''
+      chip.classList.remove('multiple')
+    }
+  }
+
+  function updateTotals() {
+    let total = 0
+    activeBets.forEach(b => total += b.amount)
+    document.getElementById('totalBet').textContent = total.toFixed(2)
+
+    const container = document.getElementById('activeBets')
+    container.innerHTML = ''
+    activeBets.forEach(b => {
+      const el = document.createElement('div')
+      el.className = 'active-bet-item'
+      el.textContent = `${formatBetName(b.type)}: $${b.amount}`
+      container.appendChild(el)
     })
   }
 
-  window.rollDice = async function() {
-    if (isRolling || !selectedBet) {
-      if (!selectedBet) alert('Please select a bet first!')
-      return
-    }
-    
-    const betAmount = Number(document.getElementById('betAmount').value)
-    if (betAmount <= 0 || betAmount > currentCredits) {
-      alert(`Invalid bet! You have $${currentCredits.toFixed(2)}`)
-      return
-    }
-    
+  function clearAllBets() {
+    if (isRolling) return
+    activeBets.clear()
+    document.querySelectorAll('.has-bet').forEach(a => {
+      a.classList.remove('has-bet')
+      const chip = a.querySelector('.bet-chip')
+      if (chip) chip.textContent = ''
+    })
+    updateTotals()
+  }
+
+  /* ---------- ENHANCED DICE ROLL ---------- */
+  async function rollDice() {
+    if (isRolling || activeBets.size === 0) return
     isRolling = true
+
     document.getElementById('rollBtn').disabled = true
-    
+    document.getElementById('clearBtn').disabled = true
+
+    const bets = [...activeBets.values()].map(b => ({
+      betType: b.type,
+      amount: b.amount
+    }))
+
     try {
       const res = await fetch('/games/craps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ betAmount, betType: selectedBet, point })
+        body: JSON.stringify({ bets, point })
       })
-      
+
       const data = await res.json()
+      if (!data.success) throw new Error(data.error)
+
+      /* ----- REALISTIC DICE ANIMATION ----- */
+      const rollArea = document.getElementById('diceRollArea')
+      const die1Container = document.getElementById('die1Container')
+      const die2Container = document.getElementById('die2Container')
+      const die1Cube = document.getElementById('die1')
+      const die2Cube = document.getElementById('die2')
+      const resultOverlay = document.getElementById('diceResult')
       
-      if (!data.success) {
-        alert(data.error || 'Roll failed')
-        isRolling = false
-        document.getElementById('rollBtn').disabled = false
-        return
-      }
+      // Show dice area
+      rollArea.classList.add('active')
       
-      // Show dice
-      const diceSymbols = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
-      document.getElementById('diceDisplay').classList.add('active')
-      document.getElementById('die1').textContent = diceSymbols[data.die1]
-      document.getElementById('die2').textContent = diceSymbols[data.die2]
-      document.getElementById('diceTotal').textContent = data.total
+      // Clear previous animations
+      die1Container.classList.remove('rolling-die-1')
+      die2Container.classList.remove('rolling-die-2')
+      die1Cube.classList.remove('spinning')
+      die2Cube.classList.remove('spinning')
       
-      // Update credits
-      currentCredits = data.credits
-      document.getElementById('credits').textContent = currentCredits.toFixed(2)
+      // Force reflow
+      void die1Container.offsetWidth
       
-      // Update point
-      if (data.point && !data.gameOver) {
-        point = data.point
-        document.querySelectorAll('.point-box').forEach(box => {
-          box.classList.remove('point')
-          if (box.dataset.number == data.point) {
-            box.classList.add('point')
-          }
-        })
-        document.getElementById('gamePhase').textContent = `Point is ${data.point} - Roll to hit the point!`
-        
-        // Show come bet option
-        document.querySelector('.come-area').style.display = 'block'
-      }
+      // Start dice spinning
+      die1Cube.classList.add('spinning')
+      die2Cube.classList.add('spinning')
       
-      // Handle game over
-      if (data.gameOver) {
-        const msg = document.getElementById('resultMessage')
-        if (data.winAmount > 0) {
-          msg.textContent = `🎉 Winner! You won $${data.winAmount.toFixed(2)}!`
-          msg.className = 'result-message win'
-        } else {
-          msg.textContent = `😢 You lost $${betAmount.toFixed(2)}`
-          msg.className = 'result-message loss'
-        }
-        
-        document.getElementById('rollBtn').style.display = 'none'
-        document.getElementById('newGameBtn').style.display = 'inline-block'
-        
-        socket.emit('game:result', {
-          username,
-          gameType: 'craps',
-          result: data.winAmount > 0 ? 'win' : 'loss',
-          amount: data.winAmount || betAmount
-        })
-      } else {
-        isRolling = false
-        document.getElementById('rollBtn').disabled = false
-      }
+      // Start container movement
+      die1Container.classList.add('rolling-die-1')
+      die2Container.classList.add('rolling-die-2')
       
-      // Hide dice after 2 seconds
+      // After animation, set final faces
       setTimeout(() => {
-        document.getElementById('diceDisplay').classList.remove('active')
-      }, 2000)
+        die1Cube.classList.remove('spinning')
+        die2Cube.classList.remove('spinning')
+        
+        // Set final rotation to show correct face
+        die1Cube.style.transform = getRotationForValue(data.die1)
+        die2Cube.style.transform = getRotationForValue(data.die2)
+        
+        // Show result
+        document.getElementById('diceTotal').textContent = data.total
+        resultOverlay.classList.add('show')
+      }, 2300)
+
+      /* ----- UPDATE CREDITS ----- */
+      currentCredits = data.credits
+      document.getElementById('credits').textContent =
+        currentCredits.toFixed(2)
+
+      /* ----- POINT ----- */
+      point = data.point ?? null
+      document.querySelectorAll('.point-box').forEach(box =>
+        box.classList.toggle('point', box.dataset.number == point)
+      )
+      updateGamePhase()
+
+      /* ----- RESULTS - FIXED LOGIC ----- */
+      const msg = document.getElementById('resultMessage')
+      let won = [], lost = [], totalWon = 0
+
+      // Process each bet result
+      data.betResults.forEach(r => {
+        if (r.result === 'win') {
+          totalWon += r.winAmount
+          won.push(`${formatBetName(r.betType)} +$${r.winAmount}`)
+          activeBets.delete(r.betType)
+          updateBetDisplay(r.betType)
+        } else if (r.result === 'loss') {
+          lost.push(`${formatBetName(r.betType)} -$${r.amount}`)
+          activeBets.delete(r.betType)
+          updateBetDisplay(r.betType)
+        } else if (r.result === 'push') {
+          // Push - bet returned but removed
+          activeBets.delete(r.betType)
+          updateBetDisplay(r.betType)
+        }
+        // If result is 'pending', bet stays active - don't remove it
+      })
+
+      // Show results message
+      if (won.length && !lost.length) {
+        msg.className = 'result-message win'
+        msg.innerHTML =
+          `🎉 WIN!<br>${won.join('<br>')}<br><strong>Total Won: +$${totalWon}</strong>`
+      } else if (!won.length && lost.length) {
+        msg.className = 'result-message loss'
+        msg.innerHTML = `😢 Loss<br>${lost.join('<br>')}`
+      } else if (won.length && lost.length) {
+        msg.className = 'result-message mixed'
+        msg.innerHTML = `Mixed Results:<br>Won: ${won.join(', ')}<br>Lost: ${lost.join(', ')}`
+      } else {
+        // All bets are pending
+        msg.className = 'result-message'
+        msg.style.display = 'none'
+      }
+
+      if (won.length || lost.length) {
+        msg.style.display = 'block'
+      }
+
+      updateTotals()
+
+      // Hide dice after showing result
+      setTimeout(() => {
+        rollArea.classList.remove('active')
+        resultOverlay.classList.remove('show')
+        die1Container.classList.remove('rolling-die-1')
+        die2Container.classList.remove('rolling-die-2')
+      }, 4000)
       
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Roll failed')
-      isRolling = false
-      document.getElementById('rollBtn').disabled = false
+      setTimeout(() => {
+        if (msg.style.display === 'block') {
+          msg.style.display = 'none'
+        }
+      }, 6000)
+
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setTimeout(() => {
+        isRolling = false
+        document.getElementById('rollBtn').disabled = false
+        document.getElementById('clearBtn').disabled = false
+      }, 4000)
     }
   }
 
-  window.newGame = function() {
-    point = null
-    selectedBet = null
-    isRolling = false
-    
-    document.querySelectorAll('.selected').forEach(el => {
-      el.classList.remove('selected')
-    })
-    
-    document.querySelectorAll('.point-box').forEach(box => {
-      box.classList.remove('point')
-    })
-    
-    document.querySelector('.come-area').style.display = 'none'
-    document.getElementById('gamePhase').textContent = 'Come Out Roll - Place Your Bets'
-    document.getElementById('resultMessage').className = 'result-message'
-    document.getElementById('rollBtn').style.display = 'inline-block'
-    document.getElementById('rollBtn').disabled = false
-    document.getElementById('newGameBtn').style.display = 'none'
+  function formatBetName(b) {
+    return b.replace(/([A-Z])/g, ' $1')
+            .replace(/^./, s => s.toUpperCase())
   }
-})()
+})
 </script>
 
 <%- include('../partials/footer') %>

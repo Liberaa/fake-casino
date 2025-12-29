@@ -2,204 +2,649 @@ const User = require('../models/User')
 const Game = require('../models/Game')
 const crypto = require('crypto')
 
+// Store active games in memory
+const activeMinesGames = new Map()
+const activeBlackjackGames = new Map()
+
 // Server-side RNG with seed for verification
 function getRandomResult(seed) {
   const hash = crypto.createHash('sha256').update(seed).digest('hex')
   return parseInt(hash.substring(0, 8), 16) / 0xffffffff
 }
 
+// ===== MINES GAME =====
 exports.startMines = async (req, res) => {
-  const { bet, mines } = req.body
+  try {
+    const { bet, mines } = req.body
+    const userId = req.session.userId
 
-  if (!bet || bet <= 0) {
-    return res.status(400).json({ error: 'Invalid bet' })
+    if (!bet || bet <= 0) {
+      return res.status(400).json({ error: 'Invalid bet' })
+    }
+
+    if (!mines || mines < 1 || mines > 24) {
+      return res.status(400).json({ error: 'Invalid mines count' })
+    }
+
+    // Check if user already has active game
+    if (activeMinesGames.has(userId)) {
+      return res.status(400).json({ error: 'Finish current game first' })
+    }
+
+    // Get user and check credits
+    const user = await User.findById(userId)
+    if (!user || user.credits < bet) {
+      return res.status(400).json({ error: 'Insufficient credits' })
+    }
+
+    // Deduct bet
+    user.credits -= bet
+    await user.save()
+
+    // Generate mine positions using server seed
+    const serverSeed = crypto.randomBytes(32).toString('hex')
+    const grid = Array(25).fill(false)
+    const minePositions = new Set()
+    
+    // Place mines randomly using seed
+    let seedCounter = 0
+    while (minePositions.size < mines) {
+      const hash = crypto.createHash('sha256')
+        .update(serverSeed + seedCounter)
+        .digest('hex')
+      const position = parseInt(hash.substring(0, 8), 16) % 25
+      minePositions.add(position)
+      seedCounter++
+    }
+    
+    minePositions.forEach(pos => {
+      grid[pos] = true
+    })
+
+    // Calculate multipliers
+    const safeSpots = 25 - mines
+    const multipliers = []
+    let currentMultiplier = 1
+    
+    for (let i = 0; i < safeSpots; i++) {
+      currentMultiplier *= (safeSpots - i) / (25 - mines - i)
+      multipliers.push(parseFloat(currentMultiplier.toFixed(2)))
+    }
+
+    // Store game state
+    const gameState = {
+      userId,
+      betAmount: bet,
+      mineCount: mines,
+      grid,
+      revealed: [],
+      multipliers,
+      currentMultiplier: 1,
+      gameOver: false,
+      serverSeed,
+      cashoutAvailable: false
+    }
+    
+    activeMinesGames.set(userId, gameState)
+
+    res.json({
+      gridSize: 25,
+      balance: user.credits,
+      mineCount: mines,
+      multipliers: multipliers.slice(0, 5)
+    })
+  } catch (error) {
+    console.error('Start mines error:', error)
+    res.status(500).json({ error: 'Failed to start game' })
   }
-
-  if (!mines || mines < 1 || mines > 24) {
-    return res.status(400).json({ error: 'Invalid mines count' })
-  }
-
-  res.json({
-    gridSize: 25,
-    balance: req.user?.credits ?? 0
-  })
 }
 
-// =======================
-// MINES TEMP STUBS
-// =======================
-
 exports.clickMines = async (req, res) => {
-  res.json({
-    hitMine: false,
-    multiplier: 1.25,
-    balance: 1000
-  })
+  try {
+    const { tileIndex } = req.body
+    const userId = req.session.userId
+
+    // Validate tile
+    if (tileIndex === undefined || tileIndex < 0 || tileIndex > 24) {
+      return res.status(400).json({ error: 'Invalid tile' })
+    }
+
+    // Get game state
+    const gameState = activeMinesGames.get(userId)
+    if (!gameState) {
+      return res.status(400).json({ error: 'No active game' })
+    }
+
+    if (gameState.gameOver) {
+      return res.status(400).json({ error: 'Game already ended' })
+    }
+
+    if (gameState.revealed.includes(tileIndex)) {
+      return res.status(400).json({ error: 'Tile already revealed' })
+    }
+
+    // Check if mine
+    const hitMine = gameState.grid[tileIndex]
+    gameState.revealed.push(tileIndex)
+
+    if (hitMine) {
+      // Game over - lost
+      gameState.gameOver = true
+      
+      // Update user stats
+      const user = await User.findById(userId)
+      user.totalLosses++
+      user.totalWagered = (user.totalWagered || 0) + gameState.betAmount
+      await user.save()
+
+      // Save game record
+      await Game.create({
+        user: userId,
+        gameType: 'mines',
+        betAmount: gameState.betAmount,
+        result: 'loss',
+        winAmount: 0,
+        details: {
+          mineCount: gameState.mineCount,
+          tilesRevealed: gameState.revealed.length,
+          serverSeed: gameState.serverSeed,
+          grid: gameState.grid,
+          verificationHash: crypto.createHash('sha256').update(gameState.serverSeed).digest('hex')
+        }
+      })
+
+      // Clean up
+      activeMinesGames.delete(userId)
+
+      res.json({
+        hitMine: true,
+        multiplier: 0,
+        balance: user.credits,
+        gameOver: true,
+        grid: gameState.grid, // Reveal all mines
+        revealed: gameState.revealed
+      })
+    } else {
+      // Safe tile
+      const safeRevealed = gameState.revealed.filter(idx => !gameState.grid[idx]).length
+      gameState.currentMultiplier = gameState.multipliers[safeRevealed - 1] || 1
+      gameState.cashoutAvailable = true
+      
+      const potentialWin = Math.floor(gameState.betAmount * gameState.currentMultiplier)
+      const nextMultiplier = gameState.multipliers[safeRevealed] || null
+
+      res.json({
+        hitMine: false,
+        multiplier: gameState.currentMultiplier,
+        balance: (await User.findById(userId)).credits,
+        tileIndex,
+        potentialWin,
+        tilesRevealed: safeRevealed,
+        nextMultiplier,
+        revealed: gameState.revealed
+      })
+    }
+  } catch (error) {
+    console.error('Click mines error:', error)
+    res.status(500).json({ error: 'Failed to reveal tile' })
+  }
 }
 
 exports.cashoutMines = async (req, res) => {
-  res.json({
-    winAmount: 50,
-    balance: 1050
-  })
+  try {
+    const userId = req.session.userId
+    
+    const gameState = activeMinesGames.get(userId)
+    if (!gameState) {
+      return res.status(400).json({ error: 'No active game' })
+    }
+    
+    if (!gameState.cashoutAvailable) {
+      return res.status(400).json({ error: 'Must reveal at least one safe tile first' })
+    }
+
+    if (gameState.gameOver) {
+      return res.status(400).json({ error: 'Game already ended' })
+    }
+    
+    const winAmount = Math.floor(gameState.betAmount * gameState.currentMultiplier)
+    
+    // Update user credits
+    const user = await User.findById(userId)
+    user.credits += winAmount
+    user.totalWins++
+    user.totalWagered = (user.totalWagered || 0) + gameState.betAmount
+    
+    if (winAmount > user.biggestWin) {
+      user.biggestWin = winAmount
+    }
+    
+    await user.save()
+    
+    // Save game record
+    await Game.create({
+      user: userId,
+      gameType: 'mines',
+      betAmount: gameState.betAmount,
+      result: 'win',
+      winAmount,
+      details: {
+        mineCount: gameState.mineCount,
+        tilesRevealed: gameState.revealed.length,
+        multiplier: gameState.currentMultiplier,
+        serverSeed: gameState.serverSeed,
+        grid: gameState.grid,
+        verificationHash: crypto.createHash('sha256').update(gameState.serverSeed).digest('hex')
+      }
+    })
+    
+    // Clear game state
+    activeMinesGames.delete(userId)
+    
+    res.json({
+      winAmount,
+      balance: user.credits,
+      grid: gameState.grid, // Show all mines after cashout
+      revealed: gameState.revealed
+    })
+  } catch (error) {
+    console.error('Cashout mines error:', error)
+    res.status(500).json({ error: 'Failed to cashout' })
+  }
 }
 
+// ===== CRAPS GAME =====
+// ===== CRAPS GAME - FIXED FOR MULTIPLE BETS =====
 exports.playCraps = async (req, res) => {
   try {
-    const { betAmount, betType, point } = req.body
+    const { bets, point } = req.body
     const user = await User.findById(req.session.userId)
 
     if (!user) {
       return res.status(401).json({ error: 'Not authenticated' })
     }
 
-    if (!betAmount || betAmount <= 0 || betAmount > user.credits) {
-      return res.status(400).json({ error: 'Invalid bet amount' })
+    // Validate all bets
+    let totalBetAmount = 0
+    const validBets = [
+      'passLine', 'dontPass', 'come', 'dontCome', 'field',
+      'any7', 'anyCraps', 'snake', 'ace', 'yo', 'boxcars',
+      'hard4', 'hard6', 'hard8', 'hard10',
+      'place4', 'place5', 'place6', 'place8', 'place9', 'place10'
+    ]
+
+    // Handle both single bet and multiple bets
+    let betArray = []
+    if (req.body.betAmount && req.body.betType) {
+      betArray = [{betType: req.body.betType, amount: req.body.betAmount}]
+    } else if (bets && Array.isArray(bets)) {
+      betArray = bets
+    } else {
+      return res.status(400).json({ error: 'Invalid bet format' })
     }
 
-    const validBets = ['passLine', 'dontPass', 'come', 'dontCome', 'field', 'any7', 'anyCraps']
-    if (!validBets.includes(betType)) {
-      return res.status(400).json({ error: 'Invalid bet type' })
+    // Validate each bet
+    for (const bet of betArray) {
+      if (!bet.amount || bet.amount <= 0) {
+        return res.status(400).json({ error: 'Invalid bet amount' })
+      }
+      if (!validBets.includes(bet.betType)) {
+        return res.status(400).json({ error: `Invalid bet type: ${bet.betType}` })
+      }
+      totalBetAmount += bet.amount
     }
 
-    // Deduct bet
-    user.credits -= betAmount
+    if (totalBetAmount > user.credits) {
+      return res.status(400).json({ error: 'Insufficient credits' })
+    }
 
-    // Roll dice
+    // Deduct total bet amount
+    user.credits -= totalBetAmount
+
+    // Roll dice ONCE for all bets
     const serverSeed = crypto.randomBytes(32).toString('hex')
     const random1 = getRandomResult(serverSeed + '1')
     const random2 = getRandomResult(serverSeed + '2')
     const die1 = Math.floor(random1 * 6) + 1
     const die2 = Math.floor(random2 * 6) + 1
     const total = die1 + die2
+    const isHard = die1 === die2
 
-    let winAmount = 0
-    let result = 'loss'
+    let totalWinAmount = 0
     let newPoint = point
     let gameOver = false
+    const betResults = []
 
-    // Pass Line / Don't Pass logic
-    if (betType === 'passLine' || betType === 'dontPass') {
-      if (!point) {
-        // Come out roll
-        if (total === 7 || total === 11) {
-          if (betType === 'passLine') {
-            winAmount = betAmount * 2
+    // Process each bet against the SAME dice roll
+    for (const bet of betArray) {
+      let winAmount = 0
+      let result = 'loss'
+
+      switch (bet.betType) {
+        case 'passLine':
+          if (!point) {
+            // Come out roll
+            if (total === 7 || total === 11) {
+              winAmount = bet.amount * 2
+              result = 'win'
+              gameOver = true
+            } else if (total === 2 || total === 3 || total === 12) {
+              result = 'loss'
+              gameOver = true
+            } else {
+              newPoint = total
+              result = 'pending' // Bet stays active
+            }
+          } else {
+            // Point phase
+            if (total === point) {
+              winAmount = bet.amount * 2
+              result = 'win'
+              gameOver = true
+              newPoint = null
+            } else if (total === 7) {
+              result = 'loss'
+              gameOver = true
+              newPoint = null
+            } else {
+              result = 'pending' // Bet stays active
+            }
+          }
+          break
+
+        case 'dontPass':
+          if (!point) {
+            // Come out roll
+            if (total === 7 || total === 11) {
+              result = 'loss'
+              gameOver = true
+            } else if (total === 2 || total === 3) {
+              winAmount = bet.amount * 2
+              result = 'win'
+              gameOver = true
+            } else if (total === 12) {
+              winAmount = bet.amount // Push
+              result = 'push'
+              gameOver = true
+            } else {
+              newPoint = total
+              result = 'pending'
+            }
+          } else {
+            // Point phase
+            if (total === 7) {
+              winAmount = bet.amount * 2
+              result = 'win'
+              gameOver = true
+              newPoint = null
+            } else if (total === point) {
+              result = 'loss'
+              gameOver = true
+              newPoint = null
+            } else {
+              result = 'pending'
+            }
+          }
+          break
+
+        case 'field':
+          if ([2, 3, 4, 9, 10, 11, 12].includes(total)) {
+            if (total === 2 || total === 12) {
+              winAmount = bet.amount * 3 // 2:1 payout
+            } else {
+              winAmount = bet.amount * 2
+            }
             result = 'win'
           }
-          gameOver = true
-        } else if (total === 2 || total === 3 || total === 12) {
-          if (betType === 'dontPass' && total !== 12) { // 12 is push for don't pass
-            winAmount = betAmount * 2
+          break
+
+        case 'any7':
+          if (total === 7) {
+            winAmount = bet.amount * 5 // 4:1 payout
             result = 'win'
-          } else if (total === 12 && betType === 'dontPass') {
-            winAmount = betAmount // Push - return bet
+          }
+          break
+
+        case 'anyCraps':
+          if ([2, 3, 12].includes(total)) {
+            winAmount = bet.amount * 8 // 7:1 payout
+            result = 'win'
+          }
+          break
+
+        case 'snake': // Snake Eyes (2)
+          if (total === 2) {
+            winAmount = bet.amount * 31 // 30:1 payout
+            result = 'win'
+          }
+          break
+
+        case 'ace': // Ace Deuce (3)
+          if (total === 3) {
+            winAmount = bet.amount * 16 // 15:1 payout
+            result = 'win'
+          }
+          break
+
+        case 'yo': // Yo-leven (11)
+          if (total === 11) {
+            winAmount = bet.amount * 16 // 15:1 payout
+            result = 'win'
+          }
+          break
+
+        case 'boxcars': // Boxcars (12)
+          if (total === 12) {
+            winAmount = bet.amount * 31 // 30:1 payout
+            result = 'win'
+          }
+          break
+
+        case 'hard4':
+          if (total === 4 && isHard) {
+            winAmount = bet.amount * 8 // 7:1 payout
+            result = 'win'
+          } else if (total === 7 || (total === 4 && !isHard)) {
+            result = 'loss'
+          } else {
+            result = 'pending'
+          }
+          break
+
+        case 'hard6':
+          if (total === 6 && isHard) {
+            winAmount = bet.amount * 10 // 9:1 payout
+            result = 'win'
+          } else if (total === 7 || (total === 6 && !isHard)) {
+            result = 'loss'
+          } else {
+            result = 'pending'
+          }
+          break
+
+        case 'hard8':
+          if (total === 8 && isHard) {
+            winAmount = bet.amount * 10 // 9:1 payout
+            result = 'win'
+          } else if (total === 7 || (total === 8 && !isHard)) {
+            result = 'loss'
+          } else {
+            result = 'pending'
+          }
+          break
+
+        case 'hard10':
+          if (total === 10 && isHard) {
+            winAmount = bet.amount * 8 // 7:1 payout
+            result = 'win'
+          } else if (total === 7 || (total === 10 && !isHard)) {
+            result = 'loss'
+          } else {
+            result = 'pending'
+          }
+          break
+
+        case 'place4':
+          if (point) { // Only valid after point is established
+            if (total === 4) {
+              winAmount = Math.floor(bet.amount * 9 / 5) + bet.amount // Return bet + winnings
+              result = 'win'
+            } else if (total === 7) {
+              result = 'loss'
+            } else {
+              result = 'pending'
+            }
+          } else {
+            result = 'pending' // Can't win/lose place bets on come out
+          }
+          break
+
+        case 'place5':
+          if (point) {
+            if (total === 5) {
+              winAmount = Math.floor(bet.amount * 7 / 5) + bet.amount
+              result = 'win'
+            } else if (total === 7) {
+              result = 'loss'
+            } else {
+              result = 'pending'
+            }
+          } else {
+            result = 'pending'
+          }
+          break
+
+        case 'place6':
+          if (point) {
+            if (total === 6) {
+              winAmount = Math.floor(bet.amount * 7 / 6) + bet.amount
+              result = 'win'
+            } else if (total === 7) {
+              result = 'loss'
+            } else {
+              result = 'pending'
+            }
+          } else {
+            result = 'pending'
+          }
+          break
+
+        case 'place8':
+          if (point) {
+            if (total === 8) {
+              winAmount = Math.floor(bet.amount * 7 / 6) + bet.amount
+              result = 'win'
+            } else if (total === 7) {
+              result = 'loss'
+            } else {
+              result = 'pending'
+            }
+          } else {
+            result = 'pending'
+          }
+          break
+
+        case 'place9':
+          if (point) {
+            if (total === 9) {
+              winAmount = Math.floor(bet.amount * 7 / 5) + bet.amount
+              result = 'win'
+            } else if (total === 7) {
+              result = 'loss'
+            } else {
+              result = 'pending'
+            }
+          } else {
+            result = 'pending'
+          }
+          break
+
+        case 'place10':
+          if (point) {
+            if (total === 10) {
+              winAmount = Math.floor(bet.amount * 9 / 5) + bet.amount
+              result = 'win'
+            } else if (total === 7) {
+              result = 'loss'
+            } else {
+              result = 'pending'
+            }
+          } else {
+            result = 'pending'
+          }
+          break
+
+        case 'come':
+          if (total === 7 || total === 11) {
+            winAmount = bet.amount * 2
+            result = 'win'
+          } else if (total === 2 || total === 3 || total === 12) {
+            result = 'loss'
+          } else {
+            result = 'pending' // Would establish a come point
+          }
+          break
+
+        case 'dontCome':
+          if (total === 7 || total === 11) {
+            result = 'loss'
+          } else if (total === 2 || total === 3) {
+            winAmount = bet.amount * 2
+            result = 'win'
+          } else if (total === 12) {
+            winAmount = bet.amount // Push
             result = 'push'
+          } else {
+            result = 'pending'
           }
-          gameOver = true
-        } else {
-          // Point established
-          newPoint = total
-        }
-      } else {
-        // Point phase
-        if (total === point) {
-          if (betType === 'passLine') {
-            winAmount = betAmount * 2
-            result = 'win'
-          }
-          gameOver = true
-        } else if (total === 7) {
-          if (betType === 'dontPass') {
-            winAmount = betAmount * 2
-            result = 'win'
-          }
-          gameOver = true
-        }
+          break
       }
-    }
 
-    // Field bet
-    if (betType === 'field') {
-      if ([3, 4, 9, 10, 11].includes(total)) {
-        winAmount = betAmount * 2
-        result = 'win'
-      } else if (total === 2 || total === 12) {
-        winAmount = betAmount * 3 // 2:1 payout
-        result = 'win'
-      }
-      gameOver = true
-    }
-
-    // Any Seven
-    if (betType === 'any7') {
-      if (total === 7) {
-        winAmount = betAmount * 5 // 4:1 payout
-        result = 'win'
-      }
-      gameOver = true
-    }
-
-    // Any Craps
-    if (betType === 'anyCraps') {
-      if (total === 2 || total === 3 || total === 12) {
-        winAmount = betAmount * 8 // 7:1 payout
-        result = 'win'
-      }
-      gameOver = true
-    }
-
-    // Come / Don't Come (similar to pass/don't pass but during point phase)
-    if (betType === 'come' || betType === 'dontCome') {
-      if (total === 7 || total === 11) {
-        if (betType === 'come') {
-          winAmount = betAmount * 2
-          result = 'win'
-        }
-      } else if (total === 2 || total === 3 || total === 12) {
-        if (betType === 'dontCome' && total !== 12) {
-          winAmount = betAmount * 2
-          result = 'win'
-        }
-      }
-      gameOver = true
+      totalWinAmount += winAmount
+      betResults.push({
+        betType: bet.betType,
+        amount: bet.amount,
+        winAmount,
+        result
+      })
     }
 
     // Update user balance
-    user.credits += winAmount
-    user.totalWagered = (user.totalWagered || 0) + betAmount
+    user.credits += totalWinAmount
+    user.totalWagered = (user.totalWagered || 0) + totalBetAmount
 
-    if (winAmount > 0) {
+    const netResult = totalWinAmount - totalBetAmount
+    if (netResult > 0) {
       user.totalWins++
-      if (winAmount > (user.biggestWin || 0)) {
-        user.biggestWin = winAmount
+      if (netResult > (user.biggestWin || 0)) {
+        user.biggestWin = netResult
       }
-    } else if (result === 'loss') {
+    } else if (netResult < 0) {
       user.totalLosses++
     }
 
     await user.save()
 
-    // Save game if it's over
-    if (gameOver) {
-      const game = new Game({
-        user: user._id,
-        gameType: 'craps',
-        betAmount,
-        result: result === 'push' ? 'loss' : result,
-        winAmount: winAmount > betAmount ? winAmount - betAmount : 0,
-        details: {
-          die1,
-          die2,
-          total,
-          betType,
-          point,
-          serverSeed,
-          verificationHash: crypto.createHash('sha256').update(serverSeed).digest('hex')
-        }
-      })
-      await game.save()
-    }
+    // Save game record
+    const game = new Game({
+      user: user._id,
+      gameType: 'craps',
+      betAmount: totalBetAmount,
+      result: netResult >= 0 ? 'win' : 'loss',
+      winAmount: netResult > 0 ? netResult : 0,
+      details: {
+        die1,
+        die2,
+        total,
+        isHard,
+        bets: betResults,
+        point,
+        newPoint,
+        serverSeed,
+        verificationHash: crypto.createHash('sha256').update(serverSeed).digest('hex')
+      }
+    })
+    await game.save()
 
     res.json({
       success: true,
@@ -208,8 +653,8 @@ exports.playCraps = async (req, res) => {
       total,
       point: newPoint,
       gameOver,
-      winAmount,
-      result,
+      totalWinAmount,
+      betResults,
       credits: user.credits
     })
   } catch (error) {
@@ -218,8 +663,7 @@ exports.playCraps = async (req, res) => {
   }
 }
 
-
-
+// ===== SLOTS GAME =====
 exports.playSlots = async (req, res) => {
   try {
     const { betAmount } = req.body
@@ -306,7 +750,7 @@ exports.playSlots = async (req, res) => {
     
     await user.save()
     
-    // Save game record only with win/loss result
+    // Save game record
     const game = new Game({
       user: user._id,
       gameType: 'slots',
@@ -336,6 +780,7 @@ exports.playSlots = async (req, res) => {
   }
 }
 
+// ===== ROULETTE GAME =====
 exports.playRoulette = async (req, res) => {
   try {
     const { betAmount, betType, betValue } = req.body
@@ -429,9 +874,7 @@ exports.playRoulette = async (req, res) => {
   }
 }
 
-// Store active blackjack games in memory
-const activeBlackjackGames = new Map()
-
+// ===== BLACKJACK GAME =====
 exports.playBlackjack = async (req, res) => {
   try {
     const { betAmount, action, gameId } = req.body
@@ -491,7 +934,7 @@ exports.playBlackjack = async (req, res) => {
           user.credits += betAmount
         } else {
           result = 'win'
-          winAmount = betAmount * 2
+          winAmount = betAmount * 2.5 // Blackjack pays 3:2
           user.credits += winAmount
           user.totalWins++
         }
@@ -626,6 +1069,7 @@ exports.playBlackjack = async (req, res) => {
   }
 }
 
+// ===== DICE GAME =====
 exports.playDice = async (req, res) => {
   try {
     const { betAmount, target, mode } = req.body
@@ -734,7 +1178,7 @@ exports.playDice = async (req, res) => {
   }
 }
 
-// Helper functions
+// ===== HELPER FUNCTIONS =====
 function createShuffledDeck(seed) {
   const suits = ['♠', '♥', '♦', '♣']
   const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
@@ -783,4 +1227,15 @@ function calculateBlackjackScore(hand) {
   }
   
   return score
+}
+
+module.exports = {
+  startMines: exports.startMines,
+  clickMines: exports.clickMines,
+  cashoutMines: exports.cashoutMines,
+  playCraps: exports.playCraps,
+  playSlots: exports.playSlots,
+  playRoulette: exports.playRoulette,
+  playBlackjack: exports.playBlackjack,
+  playDice: exports.playDice
 }
