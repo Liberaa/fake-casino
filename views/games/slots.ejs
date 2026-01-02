@@ -413,8 +413,8 @@ const COMMON = [
   { name: 'sym6', src: '/img/6.png', payout: 1.2 },
   { name: 'sym7', src: '/img/7.png', payout: 1.5 },
   { name: 'sym8', src: '/img/8.png', payout: 2.0 },
-  { name: 'sym9', src: '/img/9.png', payout: 3.0 },
-  { name: 'sym10', src: '/img/10.png', payout: 5.0 }
+  { name: 'sym9', src: '/img/9.png', payout: 2.0 },
+  { name: 'sym10', src: '/img/10.png', payout: 2.0 }
 ];
 
 const WILD = { name: 'wild', src: '/img/wild.png', isWild: true };
@@ -424,7 +424,7 @@ const CHAIN_MULTIPLIERS = { 3: 1, 4: 2, 5: 5, 6: 10 };
 
 function pickRandomSymbol() {
   const r = Math.random();
-  if (r < 0.0005) return WILD; // Changed from 0.02 to 0.001 (0.1% chance - 10x rarer)
+  if (r < 0.0005) return WILD; // Wild can give out max wins = blug keep it as imposible almost. 
   if (r < 0.02) return SCATTER; // Keep scatter at 2%
   return COMMON[Math.floor(Math.random() * COMMON.length)];
 }
