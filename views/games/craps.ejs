@@ -2,6 +2,7 @@
 <%- include('../partials/navbar', { user }) %>
 
 <style>
+/* All your existing styles here - keeping them the same */
 .craps-container {
   max-width: 1400px;
   margin: 0 auto;
@@ -1285,9 +1286,14 @@ document.addEventListener('DOMContentLoaded', function () {
     updateTotals()
   }
 
-  /* ---------- ENHANCED DICE ROLL ---------- */
+  /* ---------- ENHANCED DICE ROLL WITH DEBUGGING ---------- */
   async function rollDice() {
-    if (isRolling || activeBets.size === 0) return
+    if (isRolling || activeBets.size === 0) {
+      if (activeBets.size === 0) {
+        alert('Please place a bet first!')
+      }
+      return
+    }
     isRolling = true
 
     document.getElementById('rollBtn').disabled = true
@@ -1298,6 +1304,11 @@ document.addEventListener('DOMContentLoaded', function () {
       amount: b.amount
     }))
 
+    console.log('=== ROLL DICE DEBUG ===')
+    console.log('Sending bets:', bets)
+    console.log('Current point:', point)
+    console.log('Current credits before roll:', currentCredits)
+
     try {
       const res = await fetch('/games/craps', {
         method: 'POST',
@@ -1305,8 +1316,24 @@ document.addEventListener('DOMContentLoaded', function () {
         body: JSON.stringify({ bets, point })
       })
 
+      if (!res.ok) {
+        const errorData = await res.json()
+        console.error('Server error:', errorData)
+        throw new Error(errorData.error || 'Game failed')
+      }
+
       const data = await res.json()
-      if (!data.success) throw new Error(data.error)
+      
+      console.log('=== SERVER RESPONSE ===')
+      console.log('Full response:', data)
+      console.log('Dice:', data.die1, data.die2, 'Total:', data.total)
+      console.log('New credits:', data.credits)
+      console.log('Total win amount:', data.totalWinAmount)
+      console.log('Bet results:', data.betResults)
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Game failed')
+      }
 
       /* ----- REALISTIC DICE ANIMATION ----- */
       const rollArea = document.getElementById('diceRollArea')
@@ -1351,16 +1378,21 @@ document.addEventListener('DOMContentLoaded', function () {
       }, 2300)
 
       /* ----- UPDATE CREDITS ----- */
+      const oldCredits = currentCredits
       currentCredits = data.credits
-      document.getElementById('credits').textContent =
-        currentCredits.toFixed(2)
+      document.getElementById('credits').textContent = currentCredits.toFixed(2)
+      
+      console.log('Credits updated from', oldCredits, 'to', currentCredits)
 
       /* ----- POINT ----- */
+      const oldPoint = point
       point = data.point ?? null
       document.querySelectorAll('.point-box').forEach(box =>
         box.classList.toggle('point', box.dataset.number == point)
       )
       updateGamePhase()
+      
+      console.log('Point updated from', oldPoint, 'to', point)
 
       /* ----- RESULTS - FIXED LOGIC ----- */
       const msg = document.getElementById('resultMessage')
@@ -1368,6 +1400,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // Process each bet result
       data.betResults.forEach(r => {
+        console.log(`Bet ${r.betType}: Result=${r.result}, Amount=${r.amount}, WinAmount=${r.winAmount}`)
+        
         if (r.result === 'win') {
           totalWon += r.winAmount
           won.push(`${formatBetName(r.betType)} +$${r.winAmount}`)
@@ -1379,11 +1413,18 @@ document.addEventListener('DOMContentLoaded', function () {
           updateBetDisplay(r.betType)
         } else if (r.result === 'push') {
           // Push - bet returned but removed
+          console.log(`Push on ${r.betType}, returning ${r.amount}`)
           activeBets.delete(r.betType)
           updateBetDisplay(r.betType)
         }
         // If result is 'pending', bet stays active - don't remove it
       })
+
+      console.log('=== BET SUMMARY ===')
+      console.log('Won:', won)
+      console.log('Lost:', lost)
+      console.log('Total won:', totalWon)
+      console.log('Active bets remaining:', activeBets.size)
 
       // Show results message
       if (won.length && !lost.length) {
@@ -1423,14 +1464,22 @@ document.addEventListener('DOMContentLoaded', function () {
       }, 6000)
 
     } catch (err) {
-      alert(err.message)
-    } finally {
-      setTimeout(() => {
-        isRolling = false
-        document.getElementById('rollBtn').disabled = false
-        document.getElementById('clearBtn').disabled = false
-      }, 4000)
+      console.error('Roll error:', err)
+      alert('Error: ' + err.message)
+      
+      // Re-enable buttons on error
+      isRolling = false
+      document.getElementById('rollBtn').disabled = false
+      document.getElementById('clearBtn').disabled = false
+      return
     }
+    
+    // Normal re-enable after animation
+    setTimeout(() => {
+      isRolling = false
+      document.getElementById('rollBtn').disabled = false
+      document.getElementById('clearBtn').disabled = false
+    }, 4000)
   }
 
   function formatBetName(b) {
